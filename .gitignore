@@ -105,3 +105,7 @@ NVPROF/*
 # LOG files
 LOG
 LOG/*
+
+# CHANGE_LOG files
+CHANGE_LOG
+CHANGE_LOG/*
