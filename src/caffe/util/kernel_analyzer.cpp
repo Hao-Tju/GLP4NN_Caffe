@@ -97,9 +97,10 @@ namespace caffe {
       const uint64_t kernel_launch_overhead = AsyncResTracker::Get().GetKernelLaunchOverhead();
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
-      AsyncResTracker::Get().ProfilerUnlock();
-
       pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
+
+      AsyncResTracker::Get().ProfilerUnlock();
+      GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
     }
 
     return ;
