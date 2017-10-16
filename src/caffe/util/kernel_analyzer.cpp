@@ -209,7 +209,7 @@ namespace caffe {
     glp_set_row_name(dop_mip, 3, "Threads");
     glp_set_row_bnds(dop_mip, 3, GLP_UP, 0.0, static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor - threads_bias));
     glp_set_row_name(dop_mip, 4, "Concurrency");
-    glp_set_row_bnds(dop_mip, 4, GLP_UP, 0.0, static_cast<double>(GpuStreamPool::Get().GetStreamsNum(device_id)));
+    glp_set_row_bnds(dop_mip, 4, GLP_UP, 0.0, static_cast<double>(GpuStreamPool::Get().GetMaxNumOfStreams()));
 
     glp_load_matrix(dop_mip, total_kernel_kinds * 4, row_idx, col_idx, coef_k_arr);
     // End of constraints settings and the initialization of MIP parameter matrix.
