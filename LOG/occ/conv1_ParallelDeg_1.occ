@@ -1,0 +1,4 @@
+Layer Name,Parallel Degree,Occupancy Ratio,Total Exection Time,Max Time Consumed by Kernel
+conv1,1,0.801176,2847322,20320
+Layer Name,Parallel Degree,Occupancy Ratio,Total ExecTime,Idle Time,Max Time Consumed by Kernel
+conv1,1,0.799587,2839041,568981,20353
