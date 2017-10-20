@@ -9,6 +9,17 @@
 
 #include "caffe/util/async_tracker.hpp"
 
+#define CHECK_KERNEL_RECORD(record, flag)     {     \
+  if (record->start == 0) {                   \
+    LOG(INFO) << "WARNING! Cannot record the START timestamp of kernel: " << record->name;    \
+    flag = false;                                   \
+  } else if (record->end == 0) {              \
+    LOG(INFO) << "WARNING! Cannot record the END timestamp of kernel: " << record->name;      \
+    flag = false;                                   \
+  }                                           \
+  flag = true;                                      \
+}
+
 namespace caffe {
   int AsyncResTracker::static_kernel_counter_ = 0;
   int AsyncResTracker::profiling_device_id_ = -1;
@@ -92,8 +103,8 @@ namespace caffe {
     profiler_flag_ = false;
 
     // Enable tracking kernel information.
-    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL), "cuptiActivityEnable");
-    // CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable");
+    // CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL), "cuptiActivityEnable");
+    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable");
 
     // Register functions for requesting buffer or processing buffer.
     CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
@@ -207,7 +218,9 @@ namespace caffe {
     // Only parse kernel information.
     if ((record->kind == CUPTI_ACTIVITY_KIND_KERNEL) or
         (record->kind == CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL)) {
-      CUpti_ActivityKernel3 *kernel_record = reinterpret_cast<CUpti_ActivityKernel3 *>(record);
+      auto *kernel_record = reinterpret_cast<CUpti_ActivityKernel3 *>(record);
+      bool flag = false;
+      CHECK_KERNEL_RECORD(kernel_record, flag);
       if (kernel_record->deviceId != profiling_device_id_) {
         LOG(INFO) << "Kernel " << kernel_record->name << " @(deviceID = " << kernel_record->deviceId << ") is discarded. Current device is " << profiling_device_id_ << ".";
 
@@ -233,6 +246,12 @@ namespace caffe {
         kernel.regPerThread = kernel_record->registersPerThread;
         kernel.smPerBlock = kernel_record->staticSharedMemory + kernel_record->dynamicSharedMemory;
 
+        if (!flag) {
+          kernel_duration = 0;
+
+          return ;
+        }
+
         kernel_duration = kernel_record->end - kernel_record->start;
         int pos = FindKernelConfig(kernels_vec_ptr_, kernel);
         if (pos == -1) {
@@ -249,12 +268,14 @@ namespace caffe {
           //   kernels_vec_ptr_->at(pos).invocations;
         }
 
+        // LOG(INFO) << "STATIC_START_TIME: " << static_startTimestamp_ << ", [" << kernel_record->start << ", " << kernel_record->end << "], DURATION: " << kernel_duration;
         timestamp.start = kernel_record->start - static_startTimestamp_;
         timestamp.end = kernel_record->end - static_startTimestamp_;
         timestamp.streamId = kernel_record->streamId;
         if (static_kernel_counter_ < timestamp_vec_ptr_->size()) {
           timestamp_vec_ptr_->at(static_kernel_counter_) = timestamp;
         } else {
+          // LOG(INFO) << "START: " << timestamp.start << " --- END: " << timestamp.end;
           timestamp_vec_ptr_->push_back(timestamp);
         }
       }
@@ -263,9 +284,11 @@ namespace caffe {
 
   int AsyncResTracker::FindKernelConfig(const vector<Kernel_t> *kernel_vec_ptr, Kernel_t& kernel) {
     for (int i = 0; i < kernel_vec_ptr->size(); ++ i) {
+      /*
       if (kernel_vec_ptr->at(i).name == kernel.name) {
         LOG(INFO) << "There are kernels with the same name " << kernel.name;
       }
+      */
 
       if (kernel_vec_ptr->at(i) == kernel) {
         return i;
@@ -295,10 +318,14 @@ namespace caffe {
     uint64_t total_launch_overhead = 0;
     for (int i = 0; i < min_invocations; ++ i) {
       for (int j = 1; j < kernels_per_iter; ++ j) {
+        // LOG(INFO) << "[ START ID: " << i * kernels_per_iter + j << " --- END ID: " << i * kernels_per_iter + j - 1 << " ]";
+        // LOG(INFO) << "Start: " << timestamp_vec_.at(i * kernels_per_iter + j).start << ", End: " << timestamp_vec_.at(i * kernels_per_iter + j - 1).end;
+        // LOG(INFO) << "duration is " << timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end;
         total_launch_overhead += (timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end);
       }
     }
 
+    LOG(INFO) << "total_launch_overhead = " << total_launch_overhead << "; kernels_per_iter = " << kernels_per_iter << "; min_invocations = " << min_invocations;
     kernel_launch_overhead_ = total_launch_overhead / ((kernels_per_iter - 1) * min_invocations);
 
     LOG(INFO) << "The launch overhead of a kernel is " << kernel_launch_overhead_ << "!";

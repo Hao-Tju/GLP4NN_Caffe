@@ -68,6 +68,7 @@ namespace caffe {
   void KernelAnalyzer::AnalyzerStart(const string layer_name, const string loop_label, int &parallel_degree) {
     if (this->device_id_ == -1) {
       CHECK_CUDA_ERROR(cudaGetDevice(&this->device_id_), "cudaGetDevice");
+      LOG(INFO) << "Current DEVICE@" << this->device_id_ << ".";
     }
 
     stringstream temp_ss;
@@ -79,7 +80,7 @@ namespace caffe {
       // this place.
       AsyncResTracker::Get().ProfilerLock();
       AsyncResTracker::Get().ProfilerStart(this->device_id_);
-      parallel_degree = 1;
+      parallel_degree = 0;
     } else {
       parallel_degree = pdegree_map_[current_key_str_];
     }

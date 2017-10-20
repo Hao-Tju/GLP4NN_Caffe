@@ -178,8 +178,8 @@ ifneq ($(CPU_ONLY), 1)
 	LIBRARIES := cudart cublas curand
 endif
 
-# LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_serial_hl hdf5_serial opencv_core opencv_highgui opencv_imgproc glpk
-LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5 hdf5_hl opencv_core opencv_highgui opencv_imgproc glpk
+LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5_serial_hl hdf5_serial opencv_core opencv_highgui opencv_imgproc glpk
+# LIBRARIES += glog gflags protobuf boost_system boost_filesystem m hdf5 hdf5_hl opencv_core opencv_highgui opencv_imgproc glpk
 
 # handle IO dependencies
 USE_LEVELDB ?= 1
@@ -343,6 +343,10 @@ endif
 LIBRARY_DIRS += $(CUDA_DIR)/extras/CUPTI/lib64
 INCLUDE_DIRS += $(CUDA_DIR)/extras/CUPTI/include
 
+# Added by Hao Fu.
+LIBRARY_DIRS += /usr/lib/x86_64-linux-gnu/hdf5/serial
+INCLUDE_DIRS += /usr/include/hdf5/serial
+
 # NCCL acceleration configuration
 ifeq ($(USE_NCCL), 1)
 	LIBRARIES += nccl
@@ -439,7 +443,7 @@ else
 	PKG_CONFIG :=
 endif
 # Added by Hao Fu.
-LDFLAGS += -L/usr/lib64
+#LDFLAGS += -L/usr/lib64
 LDFLAGS += $(foreach librarydir,$(LIBRARY_DIRS),-L$(librarydir)) $(PKG_CONFIG) \
 		$(foreach library,$(LIBRARIES),-l$(library))
 PYTHON_LDFLAGS := $(LDFLAGS) $(foreach library,$(PYTHON_LIBRARIES),-l$(library))
