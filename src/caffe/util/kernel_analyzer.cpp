@@ -6,7 +6,7 @@
 
 #include "caffe/util/kernel_analyzer.hpp"
 
-#define MIN(a, b) ((a < b) ? a : b)
+#define MIN(a, b) ((std::ceil(a) < std::ceil(b)) ? std::ceil(a) : std::ceil(b))
 
 #define CHECK_GLP_ERROR(val, func) {                                                                      \
   if (val == GLP_EBOUND) {                                                                                \
@@ -115,13 +115,16 @@ namespace caffe {
     glp_set_prob_name(dop_mip, "DegreeOfParallelismSolver");
     glp_set_obj_dir(dop_mip, GLP_MAX);
 
-    int initial_col_num = glp_add_cols(dop_mip, kernels->size());
-    if (initial_col_num != 0) {
-      LOG(FATAL) << "There is another columns in this glp_prob! START COL NUM: " << initial_col_num;
+    if (kernels == NULL) {
+      LOG(FATAL) << "There is no kernels recorded!";
+    }
+
+    glp_add_cols(dop_mip, kernels->size());
+    if (glp_get_num_cols(dop_mip) == 0 ) {
+      LOG(INFO) << "ERROR! There is no kernel recorded.";
     }
 
     stringstream temp_ss;
-    temp_ss << "Kernel bounds: ";
     // Bounds settings.
     double launch_bnd = 0.0, sm_bnd = 0.0, regs_bnd = 0.0, threads_bnd = 0.0;
     double k_num_bnd = 0.0;
@@ -136,38 +139,41 @@ namespace caffe {
 
       coef_a = blocks_k;
       coef_b = static_cast<double>(gpu_prop.multiProcessorCount - 1);
-      coef_c = static_cast<double>(-1 * (gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount)) / static_cast<double>(kernels->at(i).smPerBlock);
-      sm_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
-      k_num_bnd = MIN(launch_bnd, sm_bnd);
+      if (kernels->at(i).smPerBlock != 0) {
+        coef_c = static_cast<double>(-1 * (gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount)) / static_cast<double>(kernels->at(i).smPerBlock);
+        sm_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
+        k_num_bnd = MIN(launch_bnd, sm_bnd);
+      } else {
+        k_num_bnd = launch_bnd;
+      }
 
-      coef_c = static_cast<double>((gpu_prop.regsPerMultiprocessor * gpu_prop.multiProcessorCount)) / static_cast<double>((kernels->at(i).regPerThread * threads_k));
+      coef_c = static_cast<double>(-1 * gpu_prop.regsPerMultiprocessor * gpu_prop.multiProcessorCount) / static_cast<double>(kernels->at(i).regPerThread * threads_k);
       regs_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
       k_num_bnd = MIN(k_num_bnd, regs_bnd);
 
-      coef_c = static_cast<double>((gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount)) / static_cast<double>(threads_k);
+      coef_c = static_cast<double>(-1 * gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount) / static_cast<double>(threads_k);
       threads_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
       k_num_bnd = MIN(k_num_bnd, threads_bnd);
 
       coef_k = static_cast<double>(blocks_k * threads_k);
       constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / static_cast<double>(gpu_prop.multiProcessorCount);
 
-      temp_ss << kernels->at(i).name << ": k_num_bnd\t";
+      temp_ss << kernels->at(i).name << ": " << k_num_bnd << "; ";
 
-      glp_set_col_name(dop_mip, i, kernels->at(i).name.c_str());
-      glp_set_col_bnds(dop_mip, i, GLP_DB, 0.0, k_num_bnd);
-      glp_set_obj_coef(dop_mip, i, coef_k);
+      glp_set_col_name(dop_mip, i + 1, kernels->at(i).name.c_str());
+      glp_set_col_bnds(dop_mip, i + 1, GLP_DB, 0.0, k_num_bnd);
+      glp_set_obj_coef(dop_mip, i + 1, coef_k);
     }
     glp_set_obj_coef(dop_mip, 0, constant_term);
     // End of bounds settings.
 
-    LOG(INFO) << temp_ss.str();
     temp_ss.str("");
     temp_ss.clear();
 
     // Constraints to the goal.
-    int initial_row_num = glp_add_rows(dop_mip, 4);
-    if (initial_row_num != 0) {
-      LOG(FATAL) << "There is another rows in this glp_prob! START ROW NUM: " << initial_row_num;
+    glp_add_rows(dop_mip, 4);
+    if (glp_get_num_rows(dop_mip) == 0 ) {
+      LOG(INFO) << "ERROR! There is no kernel recorded.";
     }
 
     double regs_bias = 0.0, sm_bias = 0.0, threads_bias = 0.0;
@@ -222,8 +228,8 @@ namespace caffe {
     CHECK_GLP_ERROR(glp_intopt(dop_mip, &dop_param), "glp_intopt");
 
     int max_degree_of_parallelism = 0;
-    double obj_val = glp_mip_obj_val(dop_mip);
-    LOG(INFO) << "OBJECTIVE VALUE: " << obj_val;
+    // double obj_val = glp_mip_obj_val(dop_mip);
+    // LOG(INFO) << "OBJECTIVE VALUE: " << obj_val;
     int *obj_k_val = new int[total_kernel_kinds];
     for (int i = 0; i < total_kernel_kinds; ++ i) {
       obj_k_val[i] = glp_mip_col_val(dop_mip, i + 1);
@@ -232,7 +238,7 @@ namespace caffe {
       if (i != (total_kernel_kinds - 1)) {
         temp_ss << ", ";
       } else {
-        temp_ss << "]";
+        temp_ss << "]; ";
       }
     }
     LOG(INFO) << "Kernel concurrency settings: " << temp_ss.str();
