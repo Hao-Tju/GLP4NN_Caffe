@@ -42,17 +42,6 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   virtual inline int MinTopBlobs() const { return 1; }
   virtual inline bool EqualNumBottomTopBlobs() const { return true; }
 
-  // Added by Hao Fu.
-  /*
-  AsyncResTracker& GetAsyncResTracker() {
-    return this->async_res_tracker_;
-  }
-
-  int GetParallelDegree() {
-    return this->parallel_degree_;
-  }
-  */
-
  protected:
   // Helper functions that abstract away the column buffer and gemm arguments.
   // The last argument in forward_cpu_gemm is so that we can skip the im2col if
@@ -67,6 +56,9 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   void backward_cpu_bias(Dtype* bias, const Dtype* input);
 
 #ifndef CPU_ONLY
+  // Added by Hao Fu.
+  void SetColBufferNum (int buffer_num);
+
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
       Dtype* output, int stream_id = -1, bool skip_im2col = false);
   void forward_gpu_bias(Dtype* output, const Dtype* bias, int stream_id = -1);
