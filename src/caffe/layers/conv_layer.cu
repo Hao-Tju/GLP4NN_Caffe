@@ -13,6 +13,8 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   for (int i = 0; i < bottom.size(); ++i) {
     const Dtype* bottom_data = bottom[i]->gpu_data();
     Dtype* top_data = top[i]->mutable_gpu_data();
+
+    // Modified by Hao Fu.
     int parallel_degree = 0;
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     LOG(INFO) << "(Before Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
@@ -34,6 +36,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       }
     }
     KernelAnalyzer::Get().AnalyzerStop();
+    SetColBufferNum(parallel_degree);
     std::cout << "(After Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
       << "LOOP1 is: " << parallel_degree;
     /*

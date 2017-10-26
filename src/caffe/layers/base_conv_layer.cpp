@@ -352,6 +352,17 @@ void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
 
 #ifndef CPU_ONLY
 
+// Added by Hao Fu.
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
+  for (int i = col_buffer_.size(); i < buffer_num; ++ i) {
+    col_buffer_.push_back(new Blob<Dtype>());
+    col_buffer_[i]->Reshape(col_buffer_shape_);
+  }
+
+  return ;
+}
+
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     const Dtype* weights, Dtype* output, int stream_id, bool skip_im2col) {
