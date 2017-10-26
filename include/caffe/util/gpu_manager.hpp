@@ -61,7 +61,7 @@ namespace caffe{
       }
 
       inline cudaStream_t cuda_stream(int stream_id = -1) {
-        LOG(INFO) << "Stream ID: " << stream_id;
+        // LOG(INFO) << "Stream ID: " << stream_id;
         if (stream_id == -1) {
           return 0;
         }

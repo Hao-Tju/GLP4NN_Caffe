@@ -17,11 +17,11 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     // Modified by Hao Fu.
     int parallel_degree = 0;
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
-    std::cout << "(Before Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
-      << "LOOP1 is: " << parallel_degree;
+    LOG(INFO) << "(Before Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
+      << "LOOP1 is: " << parallel_degree << ".";
     // for (int n = 0; n < this->num_; n += parallel_degree) {
     for (int n = 0; n < this->num_; n ++) {
-      int stream_id = n % parallel_degree;
+      int stream_id = parallel_degree ? n % parallel_degree : -1;
       //for (int k = 0; k < parallel_degree && (n + k) < this->num_; ++ k) {
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
             top_data + n * this->top_dim_, stream_id);
