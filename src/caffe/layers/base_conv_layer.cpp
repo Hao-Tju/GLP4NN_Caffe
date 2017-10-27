@@ -355,6 +355,7 @@ void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
 // Added by Hao Fu.
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
+  LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
   for (int i = col_buffer_.size(); i < buffer_num; ++ i) {
     col_buffer_.push_back(new Blob<Dtype>());
     col_buffer_[i]->Reshape(col_buffer_shape_);
