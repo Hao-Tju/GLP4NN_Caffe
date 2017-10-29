@@ -1,7 +1,8 @@
 #ifndef CPU_ONLY
 #ifdef USE_PROF
 
-#include <stringstream>
+#include <sstream>
+#include <fstream>
 #include <ctime>
 
 #include <boost/thread.hpp>
@@ -16,7 +17,7 @@ namespace caffe {
 
   static boost::thread_specific_ptr<InfoLog> thread_info_log_;
 
-  InfoLog& InfoLog<Dtype>::Get() {
+  InfoLog& InfoLog::Get() {
     if (!thread_info_log_.get()) {
       thread_info_log_.reset(new InfoLog());
     }
@@ -49,17 +50,17 @@ namespace caffe {
     this->device_id_ = device_id;
   }
 
-  void InfoLog::RecordInfoLog(string layer_name, string loop_name, string log_type, uint64_t log_val) {
+  void InfoLog::RecordInfoLog(string label_str, string log_type, uint64_t log_val) {
     if (this->log_stream_.is_open()) {
       this->log_stream_.close();
     }
-    this->log_stream_.open(this->base_log_folder_ + log_type + ".csv", std::io::out | std::io::app);
+    this->log_stream_.open(this->base_log_folder_ + log_type + ".csv", std::ios::out | std::ios::app);
 
     if (log_stream_.is_open()) {
-      LOG(INFO) << "Failed to open log file: " << temp_prof_ss.str();
+      LOG(INFO) << "Failed to open log file: " << this->base_log_folder_ + log_type + ".csv";
     }
 
-    log_stream_ << layer_name << "," << loop_name << "," << this->device_id_ << "," << prof_time << std::endl;
+    log_stream_ << label_str << "," << this->device_id_ << "," << log_val << std::endl;
 
     log_stream_.close();
   }

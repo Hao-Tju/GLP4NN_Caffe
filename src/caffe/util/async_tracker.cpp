@@ -4,7 +4,7 @@
 #include <limits>
 #include <string>
 #include <fstream>
-#include <stringstream>
+#include <sstream>
 
 #include <cmath>
 #include <cctype>
@@ -59,8 +59,8 @@ namespace caffe {
   string GetCurrentTime() {
     time_t curr_time = time(NULL);
     tm *local_time = localtime(&curr_time);
-    stringsream temp_ss;
-    temp_ss << local_time->tm_year << "-" << local_time->tm_mon << "-" << tm_mday;
+    stringstream temp_ss;
+    temp_ss << local_time->tm_year << "-" << local_time->tm_mon << "-" << local_time->tm_mday;
     string result = temp_ss.str();
     temp_ss.str("");
     temp_ss.clear();
@@ -70,13 +70,13 @@ namespace caffe {
 
   const char* getActivityKindString(CUpti_ActivityOverheadKind kind) {
     switch (kind) {
-      case cupti_activity_overhead_driver_compiler:
+      case CUPTI_ACTIVITY_OVERHEAD_DRIVER_COMPILER:
         return "COMPILER OVERHEAD";
       case CUPTI_ACTIVITY_OVERHEAD_CUPTI_BUFFER_FLUSH:
         return "BUFFER_FLUSH OVERHEAD";
       case CUPTI_ACTIVITY_OVERHEAD_CUPTI_INSTRUMENTATION:
         return "INSTRUMENTATION OVERHEAD";
-      case CUPTI_ACTIVITY_CUPTI_RESOURCE:
+      case CUPTI_ACTIVITY_OVERHEAD_CUPTI_RESOURCE:
         return "RESOURCE";
       default:
         break;
@@ -93,7 +93,7 @@ namespace caffe {
         return "THREAD";
       case CUPTI_ACTIVITY_OBJECT_DEVICE:
         return "DEVICE";
-      case CUPTI_ACTIVITY_OBJECT_CONTEX:
+      case CUPTI_ACTIVITY_OBJECT_CONTEXT:
         return "CONTEXT";
       case CUPTI_ACTIVITY_OBJECT_STREAM:
         return "STREAM";
@@ -344,7 +344,7 @@ namespace caffe {
       static string file_name = GetCurrentTime();
       fstream overhead_fs (("./LOG/" + file_name).c_str(), std::ios::out | std::ios::app);
 
-      LOG(INFO) << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) << "," << getActivityObjectKindString(overhead->objectKind) << std::endl;
+      LOG(INFO) << "OVERHEAD: " << getActivityKindString(overhead->overheadKind) << "," << static_cast<double>((overhead->start - overhead->end)) / 1000000 << "ms," << getActivityObjectKindString(overhead->objectKind) << std::endl;
       overhead_fs << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) << "," << getActivityObjectKindString(overhead->objectKind) << std::endl;
 
       overhead_fs.close();

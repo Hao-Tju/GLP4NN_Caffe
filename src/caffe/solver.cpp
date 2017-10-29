@@ -9,7 +9,9 @@
 #include "caffe/util/io.hpp"
 #include "caffe/util/upgrade_proto.hpp"
 
-#include "caffe/util/layer_info_log.hpp"
+#ifdef USE_PROF
+#include "caffe/util/info_log.hpp"
+#endif
 
 namespace caffe {
 

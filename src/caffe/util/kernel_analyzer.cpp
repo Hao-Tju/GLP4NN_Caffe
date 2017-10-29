@@ -100,8 +100,8 @@ namespace caffe {
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
       pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
-      kernels->clear();
 
+      LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
       AsyncResTracker::Get().ProfilerUnlock();
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
     }
@@ -117,7 +117,7 @@ namespace caffe {
     glp_set_prob_name(dop_mip, "DegreeOfParallelismSolver");
     glp_set_obj_dir(dop_mip, GLP_MAX);
 
-    if (kernels == NULL) {
+    if (kernels == NULL || kernels->size() == 0) {
       LOG(FATAL) << "There is no kernels recorded!";
     }
 
@@ -244,7 +244,6 @@ namespace caffe {
       }
     }
     LOG(INFO) << "Kernel concurrency settings: " << temp_ss.str();
-    LOG(INFO) << "Number of concurrent kernels: " << max_degree_of_parallelism;
     temp_ss.str("");
     temp_ss.clear();
 

@@ -470,7 +470,7 @@ int main(int argc, char** argv) {
   caffe::GlobalInit(&argc, &argv);
   // Added by Hao Fu.
   // Initialize the CUDA profiler.
-#ifdef USE_CUPTI
+#ifdef USE_PROF
   caffe::AsyncResTracker::InitAsyncResTracker();
   LOG(INFO) << "The initialization of the AsyncResTracker is finished.";
 #endif

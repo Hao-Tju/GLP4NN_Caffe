@@ -329,6 +329,8 @@ ifeq ($(USE_CUDNN), 1)
 	COMMON_FLAGS += -DUSE_CUDNN
 endif
 
+COMMON_FLAGS += -std=c++11
+
 # Added by Hao Fu
 # Kernel analyzer configuration.
 ifeq ($(USE_PROF), 1)

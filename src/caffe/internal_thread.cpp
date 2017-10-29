@@ -61,10 +61,10 @@ void InternalThread::StopInternalThread() {
     thread_->interrupt();
     // 4 lines are added by Hao Fu.
     // Reset the GpuStreamPool object.
-  #ifndef CPU_ONLY
+#ifndef CPU_ONLY
     CUDA_CHECK(cudaDeviceSynchronize());
     GpuStreamPool::Get().Reset();
-  #endif
+#endif
     try {
       thread_->join();
     } catch (boost::thread_interrupted&) {

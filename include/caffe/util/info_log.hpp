@@ -36,7 +36,7 @@ class InfoLog
 
     void SetDevice(int device_id);
 
-    void RecordInfoLog(string layer_name, string loop_name, string log_type, uint64_t log_val);
+    void RecordInfoLog(string label_str, string log_type, uint64_t log_val);
 
   protected:
     int device_id_;
@@ -50,7 +50,8 @@ class InfoLog
      */
     InfoLog();
 
-    DISABLE_COPY_AND_ASSIGN(InfoLog);
+    InfoLog(const InfoLog&);
+    InfoLog& operator=(const InfoLog&);
 };  // class Log
 
 // Instantiate Log class with float and double specifications.

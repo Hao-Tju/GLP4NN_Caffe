@@ -124,6 +124,7 @@ namespace caffe {
        * Function used to unlock a profiler.
        */
       void ProfilerUnlock() {
+        this->kernels_vec_.clear();
         this->profiler_mutex_.unlock();
       }
 

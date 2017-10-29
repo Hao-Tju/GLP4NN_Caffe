@@ -19,7 +19,10 @@
 
 #include "caffe/util/benchmark.hpp"
 
-#include "caffe/util/layer_info_log.hpp"
+// Added by Hao Fu.
+#ifdef USE_PROF
+#include "caffe/util/info_log.hpp"
+#endif
 
 namespace caffe {
 
@@ -266,8 +269,7 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
 
   // Added by Hao Fu.
   // Initialize the resource tracker.
-#ifndef STOP_TRACKER
-  std::cout << "Not define STOP_TRACKER" << std::endl;
+#ifdef USE_PROF
   ResTracker::InitResTracker();
 #endif
 

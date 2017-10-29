@@ -1,6 +1,10 @@
 #include <algorithm>
 #include <vector>
 
+// Added by Hao Fu.
+#include <fstream>
+#include <sstream>
+
 #include "caffe/filler.hpp"
 #include "caffe/layers/base_conv_layer.hpp"
 #include "caffe/util/im2col.hpp"
@@ -254,7 +258,7 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   }
   // Modified by Hao Fu.
   // col_buffer_.Reshape(col_buffer_shape_);
-  for (int i = 0; i < this->parallel_degree_; ++ i) {
+  for (int i = 0; i < col_buffer_.size(); ++ i) {
     col_buffer_[i]->Reshape(col_buffer_shape_);
   }
 
@@ -357,21 +361,23 @@ void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
 // Added by Hao Fu.
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
+  int former_size = col_buffer_.size();
   for (int i = col_buffer_.size(); i < buffer_num; ++ i) {
     if (i == (buffer_num - 1)) {
       LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
+
+      fstream buffer_overhead (("./LOG/" + this->layer_param_.name()).c_str(), std::ios::out | std::ios::app);
+      int buffer_size = 1;
+      for (int i = 0; i < col_buffer_shape_.size(); ++ i) {
+        buffer_size *= col_buffer_shape_[i];
+      }
+
+      LOG(INFO) << "col_buffer_ overhead[" << former_size << "->" << buffer_num << "]: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
+      buffer_overhead << former_size << "," << buffer_num << "," << (buffer_num - col_buffer_.size()) * buffer_size << " bytes" << std::endl;
     }
     col_buffer_.push_back(new Blob<Dtype>());
     col_buffer_[i]->Reshape(col_buffer_shape_);
   }
-  fstream buffer_overhead (("./LOG" + this->layer_param_.name()).c_str(), std::ios::out | std::ios::app);
-  int buffer_size = 1;
-  for (int i = 0; i < col_buffer_shape_.size(); ++ i) {
-    buffer_size *= col_buffer_shape_[i];
-  }
-
-  LOG(INFO) << "col_buffer_ overhead: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
-  buffer_overhead << (buffer_num - col_buffer_.size()) * buffer_size << " bytes" << std::endl;
 
   return ;
 }

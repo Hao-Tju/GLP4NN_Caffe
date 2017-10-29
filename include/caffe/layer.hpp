@@ -14,7 +14,7 @@
 // Added by Hao Fu.
 #ifndef CPU_ONLY
 #ifdef USE_PROF
-#include "caffe/util/layer_info_log.hpp"
+#include "caffe/util/info_log.hpp"
 #endif
 #endif
 
