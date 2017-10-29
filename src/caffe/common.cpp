@@ -173,8 +173,11 @@ void Caffe::SetDevice(const int device_id) {
       cluster_seedgen()));
 
   // Added by Hao Fu.
+#ifdef USE_PROF
   GpuStreamPool::Get().SetDevice(device_id);
   KernelAnalyzer::Get().SetDevice(device_id);
+  InfoLog::Get().SetDevice(device_id);
+#endif
 }
 
 void Caffe::DeviceQuery() {

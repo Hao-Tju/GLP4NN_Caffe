@@ -12,8 +12,12 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 // Added by Hao Fu.
+#ifndef CPU_ONLY
+#ifdef USE_PROF
 #include "caffe/layers/base_conv_layer.hpp"
 #include "caffe/util/async_tracker.hpp"
+#endif
+#endif
 
 namespace caffe {
 

@@ -20,8 +20,13 @@
 
 // Added by Hao Fu.
 // GpuStreamPool Class, which is used to manage the connections between CPU and GPU.
+#ifndef CPU_ONLY
+#ifdef USE_PROF
 #include "caffe/util/gpu_manager.hpp"
 #include "caffe/util/kernel_analyzer.hpp"
+#include "caffe/util/info_log.hpp"
+#endif
+#endif
 
 // Convert macro to string
 #define STRINGIFY(m) #m

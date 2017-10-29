@@ -4,7 +4,11 @@
 #include <vector>
 
 // Added by Hao Fu.
+#ifndef CPU_ONLY
+#ifdef USE_PROF
 #include "caffe/util/async_tracker.hpp"
+#endif
+#endif
 
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
@@ -109,11 +113,6 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   bool bias_term_;
   bool is_1x1_;
   bool force_nd_im2col_;
-
-  // Added by Hao Fu.
-  // Used to control the number of col_buffer required by im2col method.
-  int parallel_degree_;
-  //AsyncResTracker async_res_tracker_;
 
  private:
   // wrap im2col/col2im so we don't have to remember the (long) argument lists

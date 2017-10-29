@@ -16,14 +16,16 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   // Added by Hao Fu.
   // Used to get the parallel_degree parameter settings.
+  /*
   if (conv_param.has_parallel_degree()) {
     this->parallel_degree_ = conv_param.parallel_degree();
   } else {
     this->parallel_degree_ = 1;
   }
-  for (int i = 0; i < this->parallel_degree_; ++ i) {
-    col_buffer_.push_back(new Blob<Dtype>());
-  }
+  */
+  // for (int i = 0; i < this->parallel_degree_; ++ i) {
+  col_buffer_.push_back(new Blob<Dtype>());
+  // }
 
   force_nd_im2col_ = conv_param.force_nd_im2col();
   channel_axis_ = bottom[0]->CanonicalAxisIndex(conv_param.axis());
@@ -355,11 +357,21 @@ void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
 // Added by Hao Fu.
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
-  LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
   for (int i = col_buffer_.size(); i < buffer_num; ++ i) {
+    if (i == (buffer_num - 1)) {
+      LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
+    }
     col_buffer_.push_back(new Blob<Dtype>());
     col_buffer_[i]->Reshape(col_buffer_shape_);
   }
+  fstream buffer_overhead (("./LOG" + this->layer_param_.name()).c_str(), std::ios::out | std::ios::app);
+  int buffer_size = 1;
+  for (int i = 0; i < col_buffer_shape_.size(); ++ i) {
+    buffer_size *= col_buffer_shape_[i];
+  }
+
+  LOG(INFO) << "col_buffer_ overhead: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
+  buffer_overhead << (buffer_num - col_buffer_.size()) * buffer_size << " bytes" << std::endl;
 
   return ;
 }

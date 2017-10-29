@@ -330,18 +330,17 @@ ifeq ($(USE_CUDNN), 1)
 endif
 
 # Added by Hao Fu
-# CUPTI configuration.
-ifeq ($(USE_CUPTI), 1)
+# Kernel analyzer configuration.
+ifeq ($(USE_PROF), 1)
 	LIBRARIES += cupti
-	COMMON_FLAGS += -DUSE_CUPTI
+	COMMON_FLAGS += -DUSE_PROF
+	LIBRARY_DIRS += $(CUDA_DIR)/extras/CUPTI/lib64
+	INCLUDE_DIRS += $(CUDA_DIR)/extras/CUPTI/include
 endif
 
 ifeq ($(STOP_TRACKER), 1)
 	COMMON_FLAGS += -DSTOP_TRACKER
 endif
-
-LIBRARY_DIRS += $(CUDA_DIR)/extras/CUPTI/lib64
-INCLUDE_DIRS += $(CUDA_DIR)/extras/CUPTI/include
 
 # Added by Hao Fu.
 LIBRARY_DIRS += /usr/lib/x86_64-linux-gnu/hdf5/serial

@@ -583,7 +583,7 @@ message ConvolutionParameter {
 
   optional uint32 group = 5 [default = 1]; // The group size for group conv
   // The number of concurrent kernels in this convolution layer.
-  optional uint32 parallel_degree = 19 [default = 1];
+  // optional uint32 parallel_degree = 19 [default = 1];
 
   optional FillerParameter weight_filler = 7; // The filler for the weight
   optional FillerParameter bias_filler = 8; // The filler for the bias

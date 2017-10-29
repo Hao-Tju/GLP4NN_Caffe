@@ -1,3 +1,6 @@
+#ifndef CPU_ONLY
+#ifdef USE_PROF
+
 #include <boost/thread.hpp>
 #include <cstdlib>
 
@@ -189,3 +192,6 @@ namespace caffe {
     return ;
   }
 }
+
+#endif    /** USE_PROF **/
+#endif    /** CPU_ONLY **/

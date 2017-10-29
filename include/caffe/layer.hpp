@@ -12,7 +12,11 @@
 #include "caffe/util/math_functions.hpp"
 
 // Added by Hao Fu.
+#ifndef CPU_ONLY
+#ifdef USE_PROF
 #include "caffe/util/layer_info_log.hpp"
+#endif
+#endif
 
 #define PREFIX_DIR "./LOG/"
 

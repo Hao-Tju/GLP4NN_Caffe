@@ -1,4 +1,5 @@
 #ifndef CPU_ONLY
+#ifdef USE_PROF
 
 #ifndef CAFFE_ASYNC_TRACKER_HPP_
 #define CAFFE_ASYNC_TRACKER_HPP_
@@ -287,5 +288,5 @@ namespace caffe {
 }   /** namespace caffe **/
 
 #endif    /** CAFFE_ASYNC_TRACKER_HPP_ **/
-
-#endif /** CPU_ONLY settings **/
+#endif    /** USE_PROF **/
+#endif    /** CPU_ONLY settings **/

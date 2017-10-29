@@ -1,9 +1,14 @@
 #ifndef CPU_ONLY
+#ifdef USE_PROF
 
 #include <limits>
+#include <string>
+#include <fstream>
+#include <stringstream>
 
 #include <cmath>
 #include <cctype>
+#include <ctime>
 
 #include <boost/thread.hpp>
 
@@ -21,6 +26,12 @@
 }
 
 namespace caffe {
+  using std::string;
+  using std::fstream;
+  using std::stringstream;
+  using std::time_t;
+  using std::tm;
+
   int AsyncResTracker::static_kernel_counter_ = 0;
   int AsyncResTracker::profiling_device_id_ = -1;
   bool AsyncResTracker::profiler_flag_ = false;
@@ -43,6 +54,54 @@ namespace caffe {
   template <typename T>
   bool Compare(T val1, T val2) {
     return (val1 < val2);
+  }
+
+  string GetCurrentTime() {
+    time_t curr_time = time(NULL);
+    tm *local_time = localtime(&curr_time);
+    stringsream temp_ss;
+    temp_ss << local_time->tm_year << "-" << local_time->tm_mon << "-" << tm_mday;
+    string result = temp_ss.str();
+    temp_ss.str("");
+    temp_ss.clear();
+
+    return result;
+  }
+
+  const char* getActivityKindString(CUpti_ActivityOverheadKind kind) {
+    switch (kind) {
+      case cupti_activity_overhead_driver_compiler:
+        return "COMPILER OVERHEAD";
+      case CUPTI_ACTIVITY_OVERHEAD_CUPTI_BUFFER_FLUSH:
+        return "BUFFER_FLUSH OVERHEAD";
+      case CUPTI_ACTIVITY_OVERHEAD_CUPTI_INSTRUMENTATION:
+        return "INSTRUMENTATION OVERHEAD";
+      case CUPTI_ACTIVITY_CUPTI_RESOURCE:
+        return "RESOURCE";
+      default:
+        break;
+    }
+
+    return "<unknown>";
+  }
+
+  const char* getActivityObjectKindString(CUpti_ActivityObjectKind kind) {
+    switch (kind) {
+      case CUPTI_ACTIVITY_OBJECT_PROCESS:
+        return "PROCESS";
+      case CUPTI_ACTIVITY_OBJECT_THREAD:
+        return "THREAD";
+      case CUPTI_ACTIVITY_OBJECT_DEVICE:
+        return "DEVICE";
+      case CUPTI_ACTIVITY_OBJECT_CONTEX:
+        return "CONTEXT";
+      case CUPTI_ACTIVITY_OBJECT_STREAM:
+        return "STREAM";
+      default:
+        break;
+    }
+
+    return "<unknown>";
   }
 
   AsyncResTracker& AsyncResTracker::Get() {
@@ -103,8 +162,10 @@ namespace caffe {
     profiler_flag_ = false;
 
     // Enable tracking kernel information.
-    // CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL), "cuptiActivityEnable");
-    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable");
+    // CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+    //                  "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
+    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
 
     // Register functions for requesting buffer or processing buffer.
     CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
@@ -268,7 +329,6 @@ namespace caffe {
           //   kernels_vec_ptr_->at(pos).invocations;
         }
 
-        // LOG(INFO) << "STATIC_START_TIME: " << static_startTimestamp_ << ", [" << kernel_record->start << ", " << kernel_record->end << "], DURATION: " << kernel_duration;
         timestamp.start = kernel_record->start - static_startTimestamp_;
         timestamp.end = kernel_record->end - static_startTimestamp_;
         timestamp.streamId = kernel_record->streamId;
@@ -279,17 +339,20 @@ namespace caffe {
           timestamp_vec_ptr_->push_back(timestamp);
         }
       }
+    } else if (record->kind == CUPTI_ACTIVITY_KIND_OVERHEAD) {
+      CUpti_ActivityOverhead *overhead = reinterpret_cast<CUpti_ActivityOverhead *> (record);
+      static string file_name = GetCurrentTime();
+      fstream overhead_fs (("./LOG/" + file_name).c_str(), std::ios::out | std::ios::app);
+
+      LOG(INFO) << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) << "," << getActivityObjectKindString(overhead->objectKind) << std::endl;
+      overhead_fs << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) << "," << getActivityObjectKindString(overhead->objectKind) << std::endl;
+
+      overhead_fs.close();
     }
   }
 
   int AsyncResTracker::FindKernelConfig(const vector<Kernel_t> *kernel_vec_ptr, Kernel_t& kernel) {
     for (int i = 0; i < kernel_vec_ptr->size(); ++ i) {
-      /*
-      if (kernel_vec_ptr->at(i).name == kernel.name) {
-        LOG(INFO) << "There are kernels with the same name " << kernel.name;
-      }
-      */
-
       if (kernel_vec_ptr->at(i) == kernel) {
         return i;
       }
@@ -318,9 +381,6 @@ namespace caffe {
     uint64_t total_launch_overhead = 0;
     for (int i = 0; i < min_invocations; ++ i) {
       for (int j = 1; j < kernels_per_iter; ++ j) {
-        // LOG(INFO) << "[ START ID: " << i * kernels_per_iter + j << " --- END ID: " << i * kernels_per_iter + j - 1 << " ]";
-        // LOG(INFO) << "Start: " << timestamp_vec_.at(i * kernels_per_iter + j).start << ", End: " << timestamp_vec_.at(i * kernels_per_iter + j - 1).end;
-        // LOG(INFO) << "duration is " << timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end;
         total_launch_overhead += (timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end);
       }
     }
@@ -477,4 +537,5 @@ namespace caffe {
   }
 } /** namespace caffe **/
 
+#endif /** USE_PROF **/
 #endif /** CPU_ONLY settings **/

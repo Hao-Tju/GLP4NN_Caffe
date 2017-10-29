@@ -1,4 +1,5 @@
 #ifndef CPU_ONLY
+#ifdef USE_PROF
 
 #include <glpk.h>
 
@@ -99,6 +100,7 @@ namespace caffe {
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
       pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
+      kernels->clear();
 
       AsyncResTracker::Get().ProfilerUnlock();
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
@@ -267,4 +269,5 @@ namespace caffe {
   }
 } /** namespace caffe **/
 
+#endif /** USE_PROF **/
 #endif /** CPU_ONLY settings. **/

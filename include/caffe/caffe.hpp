@@ -19,6 +19,10 @@
 #include "caffe/util/upgrade_proto.hpp"
 
 // Added by Hao Fu.
+#ifndef CPU_ONLY
+#ifdef USE_PROF
 #include "caffe/util/kernel_analyzer.hpp"
+#endif
+#endif
 
 #endif  // CAFFE_CAFFE_HPP_

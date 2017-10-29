@@ -1,7 +1,8 @@
+#ifndef CPU_ONLY
+#ifdef USE_PROF
+
 #ifndef CAFFE_GPU_MANAGER_HPP_
 #define CAFFE_GPU_MANAGER_HPP_
-
-#ifndef CPU_ONLY
 
 #include <boost/thread.hpp>
 #include <glog/logging.h>
@@ -132,5 +133,6 @@ namespace caffe{
   };
 }
 
-#endif    /** CPU_ONLY **/
 #endif    /** CAFFE_GPU_MANAGER_HPP_ **/
+#endif    /** USE_PROF **/
+#endif    /** CPU_ONLY **/

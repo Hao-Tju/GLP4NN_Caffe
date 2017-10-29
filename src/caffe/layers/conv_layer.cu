@@ -17,10 +17,12 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
     // Modified by Hao Fu.
     int parallel_degree = 0;
+#ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     LOG(INFO) << "(Before Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
               << "LOOP1 is: " << parallel_degree << ".";
     this->SetColBufferNum(parallel_degree);
+#endif
     // for (int n = 0; n < this->num_; n += parallel_degree) {
     for (int n = 0; n < this->num_; n ++) {
       int stream_id = parallel_degree ? n % parallel_degree : -1;
@@ -37,9 +39,11 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         //}
       }
     }
+#ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStop();
     std::cout << "(After Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
               << "LOOP1 is: " << parallel_degree << std::endl;
+#endif
     /*
     if (this->parallel_degree_ <= 1) {
       for (int n = 0; n < this->num_; ++n) {

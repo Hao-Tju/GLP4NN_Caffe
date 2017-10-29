@@ -18,6 +18,7 @@
  */
 
 #ifndef CPU_ONLY
+#ifdef USE_PROF
 
 #ifndef CAFFE_ANALYZER_HPP_
 #define CAFFE_ANALYZER_HPP_
@@ -126,5 +127,5 @@ namespace caffe {
 } /** namespace caffe **/
 
 #endif    /** CAFFE_ANALYZER_HPP_ **/
-
-#endif /** CPU_ONLY definition. **/
+#endif    /** USE_PROF **/
+#endif    /** CPU_ONLY definition. **/

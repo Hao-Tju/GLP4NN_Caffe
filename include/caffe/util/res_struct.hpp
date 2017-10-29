@@ -17,6 +17,7 @@
 ///
 
 #ifndef CPU_ONLY
+#ifdef USE_PROF
 
 #ifndef CAFFE_RES_STRUCT_HPP_
 #define CAFFE_RES_STRUCT_HPP_
@@ -111,5 +112,5 @@ namespace caffe {
 } /** namespace caffe. **/
 
 #endif    /** CAFFE_RES_STRUCT_HPP_ **/
-
-#endif /** CPU_ONLY settings **/
+#endif    /** USE_PROF **/
+#endif    /** CPU_ONLY settings **/
