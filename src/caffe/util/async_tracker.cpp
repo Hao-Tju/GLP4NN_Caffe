@@ -13,6 +13,7 @@
 #include <boost/thread.hpp>
 
 #include "caffe/util/async_tracker.hpp"
+#include "caffe/util/info_log.hpp"
 
 #define CHECK_KERNEL_RECORD(record, flag)     {     \
   if (record->start == 0) {                   \
@@ -342,12 +343,15 @@ namespace caffe {
     } else if (record->kind == CUPTI_ACTIVITY_KIND_OVERHEAD) {
       CUpti_ActivityOverhead *overhead = reinterpret_cast<CUpti_ActivityOverhead *> (record);
       static string file_name = GetCurrentTime();
-      fstream overhead_fs (("./LOG/" + file_name).c_str(), std::ios::out | std::ios::app);
+      stringstream temp_ss;
 
       LOG(INFO) << "OVERHEAD: " << getActivityKindString(overhead->overheadKind) << "," << static_cast<double>((overhead->start - overhead->end)) / 1000000 << "ms," << getActivityObjectKindString(overhead->objectKind) << std::endl;
-      overhead_fs << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) << "," << getActivityObjectKindString(overhead->objectKind) << std::endl;
+      temp_ss << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) / 1000000 << " ms," << getActivityObjectKindString(overhead->objectKind);
 
-      overhead_fs.close();
+      InfoLog::Get().RecordInfoLog(file_name, "-OVERHEAD", temp_ss.str());
+
+      temp_ss.str("");
+      temp_ss.clear();
     }
   }
 

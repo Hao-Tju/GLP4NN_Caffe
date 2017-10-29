@@ -50,7 +50,7 @@ namespace caffe {
     this->device_id_ = device_id;
   }
 
-  void InfoLog::RecordInfoLog(string label_str, string log_type, uint64_t log_val) {
+  void InfoLog::RecordInfoLog(string label_str, string log_type, string log_val) {
     if (this->log_stream_.is_open()) {
       this->log_stream_.close();
     }
@@ -60,6 +60,7 @@ namespace caffe {
       LOG(INFO) << "Failed to open log file: " << this->base_log_folder_ + log_type + ".csv";
     }
 
+    LOG(INFO) << "LOGGING: " << label_str << "," << this->device_id_ << "," << log_val << std::endl;
     log_stream_ << label_str << "," << this->device_id_ << "," << log_val << std::endl;
 
     log_stream_.close();

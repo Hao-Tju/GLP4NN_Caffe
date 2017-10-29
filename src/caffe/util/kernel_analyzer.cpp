@@ -6,6 +6,7 @@
 #include <boost/thread.hpp>
 
 #include "caffe/util/kernel_analyzer.hpp"
+#include "caffe/util/benchmark.hpp"
 
 #define MIN(a, b) ((std::ceil(a) < std::ceil(b)) ? std::ceil(a) : std::ceil(b))
 
@@ -41,6 +42,18 @@
 
 namespace caffe {
   static boost::thread_specific_ptr<KernelAnalyzer> thread_kernel_analyzer_;
+
+  string GetCurrentTime() {
+    time_t curr_time = time(NULL);
+    tm *local_time = localtime(&curr_time);
+    stringstream temp_ss;
+    temp_ss << local_time->tm_year << "-" << local_time->tm_mon << "-" << local_time->tm_mday;
+    string result = temp_ss.str();
+    temp_ss.str("");
+    temp_ss.clear();
+
+    return result;
+  }
 
   KernelAnalyzer& KernelAnalyzer::Get() {
     // If thread_kAnalyzer_instance_ has not been initialized,
@@ -96,6 +109,10 @@ namespace caffe {
     if (pdegree_map_.find(current_key_str_) == pdegree_map_.end()) {
       AsyncResTracker::Get().ProfilerStop(this->device_id_);
 
+      Timer analyzer_timer;
+      stringstream temp_ss;
+      analyzer_timer.Start();
+
       const uint64_t kernel_launch_overhead = AsyncResTracker::Get().GetKernelLaunchOverhead();
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
@@ -104,6 +121,13 @@ namespace caffe {
       LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
       AsyncResTracker::Get().ProfilerUnlock();
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
+
+      double analyzer_overhead = analyzer_timer.MicroSeconds();
+      temp_ss << current_key_str_ << "," << analyzer_overhead;
+      InfoLog::Get().RecordInfoLog(GetCurrentTime(), "-ANALYZER", temp_ss.str());
+
+      temp_ss.str("");
+      temp_ss.clear();
     }
 
     return ;

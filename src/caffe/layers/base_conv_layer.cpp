@@ -5,6 +5,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "caffe/util/info_log.hpp"
+
 #include "caffe/filler.hpp"
 #include "caffe/layers/base_conv_layer.hpp"
 #include "caffe/util/im2col.hpp"
@@ -361,20 +363,31 @@ void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
 // Added by Hao Fu.
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
+  if (col_buffer_.size() == buffer_num) {
+    return ;
+  }
+
   int former_size = col_buffer_.size();
   for (int i = col_buffer_.size(); i < buffer_num; ++ i) {
     if (i == (buffer_num - 1)) {
       LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
 
-      fstream buffer_overhead (("./LOG/" + this->layer_param_.name()).c_str(), std::ios::out | std::ios::app);
+      stringstream temp_ss;
+
       int buffer_size = 1;
       for (int i = 0; i < col_buffer_shape_.size(); ++ i) {
         buffer_size *= col_buffer_shape_[i];
       }
 
       LOG(INFO) << "col_buffer_ overhead[" << former_size << "->" << buffer_num << "]: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
-      buffer_overhead << former_size << "," << buffer_num << "," << (buffer_num - col_buffer_.size()) * buffer_size << " bytes" << std::endl;
+      temp_ss << former_size << "->" << buffer_num << ","i << static_cast<double>((buffer_num - col_buffer_.size()) * buffer_size * sizeof(Dtype)) / (1024 * 1024) << " MB";
+
+      InfoLog::Get().RecordInfoLog(this->layer_param_.name(), "-MEM", temp_ss.str());
+
+      temp_ss.str("");
+      temp_ss.clear();
     }
+
     col_buffer_.push_back(new Blob<Dtype>());
     col_buffer_[i]->Reshape(col_buffer_shape_);
   }

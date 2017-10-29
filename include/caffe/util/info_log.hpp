@@ -36,7 +36,7 @@ class InfoLog
 
     void SetDevice(int device_id);
 
-    void RecordInfoLog(string label_str, string log_type, uint64_t log_val);
+    void RecordInfoLog(string label_str, string log_type, string log_val);
 
   protected:
     int device_id_;
