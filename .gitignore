@@ -70,7 +70,6 @@ models/*
 *.binaryproto
 *leveldb
 *lmdb
-*.mdb
 
 # build, distribute, and bins (+ python proto bindings)
 build
@@ -107,3 +106,7 @@ LOG
 
 # NVPROF
 NVPROF
+
+# lock.mdb
+examples/mnist/mnist_test_lmdb/lock.mdb
+examples/mnist/mnist_train_lmdb/lock.mdb
