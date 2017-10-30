@@ -380,7 +380,7 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
       }
 
       LOG(INFO) << "col_buffer_ overhead[" << former_size << "->" << buffer_num << "]: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
-      temp_ss << former_size << "->" << buffer_num << ","i << static_cast<double>((buffer_num - col_buffer_.size()) * buffer_size * sizeof(Dtype)) / (1024 * 1024) << " MB";
+      temp_ss << former_size << "->" << buffer_num << "," << static_cast<double>((buffer_num - col_buffer_.size()) * buffer_size * sizeof(Dtype)) / (1024 * 1024) << " MB";
 
       InfoLog::Get().RecordInfoLog(this->layer_param_.name(), "-MEM", temp_ss.str());
 

@@ -1,5 +1,4 @@
 #ifndef CPU_ONLY
-#ifdef USE_PROF
 
 #include <sstream>
 #include <fstream>
@@ -67,5 +66,4 @@ namespace caffe {
   }
 }   /** namespace caffe **/
 
-#endif    /** USE_PROF **/
 #endif    /** CPU_ONLY **/

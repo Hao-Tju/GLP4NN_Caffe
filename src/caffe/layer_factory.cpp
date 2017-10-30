@@ -56,6 +56,7 @@ shared_ptr<Layer<Dtype> > GetConvolutionLayer(
 #endif
   }
   if (engine == ConvolutionParameter_Engine_CAFFE) {
+    LOG(INFO) << "Use CONVOLUTION layer POWERED by CAFFE engine.";
     return shared_ptr<Layer<Dtype> >(new ConvolutionLayer<Dtype>(param));
 #ifdef USE_CUDNN
   } else if (engine == ConvolutionParameter_Engine_CUDNN) {

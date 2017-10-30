@@ -22,9 +22,9 @@
 // GpuStreamPool Class, which is used to manage the connections between CPU and GPU.
 #ifndef CPU_ONLY
 #include "caffe/util/gpu_manager.hpp"
+#include "caffe/util/info_log.hpp"
 #ifdef USE_PROF
 #include "caffe/util/kernel_analyzer.hpp"
-#include "caffe/util/info_log.hpp"
 #endif
 #endif
 

@@ -1,5 +1,4 @@
 #ifndef CPU_ONLY
-#ifdef USE_PROF
 
 #ifndef CAFFE_INFO_LOG_HPP_
 #define CAFFE_INFO_LOG_HPP_
@@ -54,13 +53,7 @@ class InfoLog
     InfoLog& operator=(const InfoLog&);
 };  // class Log
 
-// Instantiate Log class with float and double specifications.
-// INSTANTIATE_CLASS(Log);
-// template class InfoLog<float>;
-// template class InfoLog<double>;
-
 } /** namespace caffe **/
 
 #endif    /** CAFFE_LAYER_INFO_LOG_HPP_ **/
-#endif    /** USE_PROF **/
 #endif    /** CPU_ONLY **/
