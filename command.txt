@@ -1,0 +1,4 @@
+./example/mnist/train_lenet.sh
+./example/cifar10/train_quick.sh
+./example/siamese/train_mnist_siamese.sh
+./example/imagenet/train_caffenet.sh

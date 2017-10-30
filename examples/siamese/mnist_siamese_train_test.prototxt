@@ -59,6 +59,7 @@ layer {
     num_output: 20
     kernel_size: 5
     stride: 1
+    engine: CAFFE
     weight_filler {
       type: "xavier"
     }
@@ -95,6 +96,7 @@ layer {
     num_output: 50
     kernel_size: 5
     stride: 1
+    engine: CAFFE
     weight_filler {
       type: "xavier"
     }
@@ -206,6 +208,7 @@ layer {
     num_output: 20
     kernel_size: 5
     stride: 1
+    engine: CAFFE
     weight_filler {
       type: "xavier"
     }
@@ -242,6 +245,7 @@ layer {
     num_output: 50
     kernel_size: 5
     stride: 1
+    engine: CAFFE
     weight_filler {
       type: "xavier"
     }
