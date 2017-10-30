@@ -20,9 +20,7 @@
 #include "caffe/util/benchmark.hpp"
 
 // Added by Hao Fu.
-#ifdef USE_PROF
 #include "caffe/util/info_log.hpp"
-#endif
 
 namespace caffe {
 
@@ -542,7 +540,7 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
    * Collect the forward time of corresponding layers.
    */
   Timer forward_timer;
-  static unsigned int iterations = 0;
+  static unsigned int iterations = 1;
   static std::vector<double> forward_time_per_layer(this->layers_.size(), 0.0);
   for (int i = start; i <= end; ++i) {
     for (int c = 0; c < before_forward_.size(); ++c) {
@@ -555,11 +553,11 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
       cudaProfilerStart();
     }
     */
-    if (this->phase() == caffe::TRAIN and iterations < 100) {
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and (iterations > 100 and iterations % 100 == 0)) {
       forward_timer.Start();      // Added by Hao Fu.
     }
     Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
-    if (this->phase() == caffe::TRAIN and iterations < 100) {
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and (iterations < 100 and iterations % 100 == 0)) {
       forward_time_per_layer[i] += forward_timer.MicroSeconds();   // Added by Hao Fu.
     }
     /*
@@ -577,16 +575,27 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
       after_forward_[c]->run(i);
     }
   }
-  if (this->phase() == caffe::TRAIN && iterations < 100) {
+  if (Caffe::root_solver() and this->phase() == caffe::TRAIN) {
     iterations ++;
   }
 
-  if (iterations == 100) {
+  if (iterations > 100 and iterations % 100 == 0) {
+    stringstream temp_ss;
     for (int i = 0; i < layers_.size(); ++ i) {
       const caffe::string& layername = layers_[i]->layer_param().name();
-      LOG_IF(INFO, Caffe::root_solver()) << std::setfill(' ') << std::setw(10) << layername << "\tforward: " << forward_time_per_layer[i] / 1000.0 / static_cast<double>(iterations) << " ms( " << forward_time_per_layer[i] / static_cast<double>(iterations) << " us ) --- ITERATIONS: " << iterations;
+      LOG_IF(INFO, Caffe::root_solver()) << std::setfill(' ') << std::setw(10) << layername << "\tforward: " << forward_time_per_layer[i] / 100000.0 << " ms( " << forward_time_per_layer[i] / 100.0 << " us ) --- ITERATIONS: " << iterations;
+      if (Caffe::root_solver()) {
+        temp_ss << std::setfill(' ') << std::setw(10) << layername << "," << forward_time_per_layer[i] / 100000.0 << " ms," << forward_time_per_layer[i] / 100.0 << " us";
+#ifdef USE_PROF
+        InfoLog::Get().RecordInfoLog("Forward", "-PROF", temp_ss.str());
+#else
+        InfoLog::Get().RecordInfoLog("Forward", "-DEFAULT", temp_ss.str());
+#endif
+        temp_ss.str("");
+        temp_ss.clear();
+      }
+      forward_time_per_layer[i] = 0.0;
     }
-    iterations ++;
   }
 
   return loss;
