@@ -66,6 +66,18 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   // Create a copy of filtered_param with splits added where necessary.
   NetParameter param;
   InsertSplits(filtered_param, &param);
+
+  // Added by Hao Fu.
+  if (Caffe::root_solver()) {
+#ifndef CPU_ONLY
+#ifdef USE_PROF
+    InfoLog::Get().SetFolder(param.name() + "_PROF");
+#else
+    InfoLog::Get().SetFolder(param.name() + "_SERIAL");
+#endif
+#endif
+  }
+
   // Basically, build all the layers and set up their connections.
   name_ = param.name();
   map<string, int> blob_name_to_idx;
@@ -267,9 +279,9 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
 
   // Added by Hao Fu.
   // Initialize the resource tracker.
-#ifdef USE_PROF
-  ResTracker::InitResTracker();
-#endif
+// #ifdef USE_PROF
+//   AsyncResTracker::InitAsyncResTracker();
+// #endif
 
   LOG_IF(INFO, Caffe::root_solver()) << "Network initialization done.";
 }
@@ -553,11 +565,11 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
       cudaProfilerStart();
     }
     */
-    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and (iterations > 100 and iterations % 100 == 0)) {
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100) {
       forward_timer.Start();      // Added by Hao Fu.
     }
     Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
-    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and (iterations < 100 and iterations % 100 == 0)) {
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100) {
       forward_time_per_layer[i] += forward_timer.MicroSeconds();   // Added by Hao Fu.
     }
     /*
@@ -585,11 +597,11 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
       const caffe::string& layername = layers_[i]->layer_param().name();
       LOG_IF(INFO, Caffe::root_solver()) << std::setfill(' ') << std::setw(10) << layername << "\tforward: " << forward_time_per_layer[i] / 100000.0 << " ms( " << forward_time_per_layer[i] / 100.0 << " us ) --- ITERATIONS: " << iterations;
       if (Caffe::root_solver()) {
-        temp_ss << std::setfill(' ') << std::setw(10) << layername << "," << forward_time_per_layer[i] / 100000.0 << " ms," << forward_time_per_layer[i] / 100.0 << " us";
+        temp_ss << "ITER-" << iterations << "," << layername << "," << forward_time_per_layer[i] / 100000.0 << " ms," << forward_time_per_layer[i] / 100.0 << " us";
 #ifdef USE_PROF
-        InfoLog::Get().RecordInfoLog("Forward", "-PROF", temp_ss.str());
+        InfoLog::Get().RecordInfoLog("Forward", "Forward-PROF", temp_ss.str());
 #else
-        InfoLog::Get().RecordInfoLog("Forward", "-DEFAULT", temp_ss.str());
+        InfoLog::Get().RecordInfoLog("Forward", "Forward-DEFAULT", temp_ss.str());
 #endif
         temp_ss.str("");
         temp_ss.clear();

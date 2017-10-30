@@ -15,6 +15,8 @@
 #include "caffe/util/async_tracker.hpp"
 #include "caffe/util/info_log.hpp"
 
+#define NS2MS 1000000.0
+
 #define CHECK_KERNEL_RECORD(record, flag)     {     \
   if (record->start == 0) {                   \
     LOG(INFO) << "WARNING! Cannot record the START timestamp of kernel: " << record->name;    \
@@ -57,7 +59,7 @@ namespace caffe {
     return (val1 < val2);
   }
 
-  string GetCurrentTime() {
+  string AsyncGetCurrentTime() {
     time_t curr_time = time(NULL);
     tm *local_time = localtime(&curr_time);
     stringstream temp_ss;
@@ -239,6 +241,12 @@ namespace caffe {
       *size = BUFFER_SIZE;
       *buffer = ALIGN_BUFFER(temp_buf, ALIGN_SIZE);
       *maxNumRecords = 0;
+
+      stringstream temp_ss;
+      temp_ss << (BUFFER_SIZE + ALIGN_SIZE) * sizeof(uint8_t) / 1024 << " KB";
+      InfoLog::Get().RecordInfoLog("cupti_buffer", "CUPTI-BUFFER", temp_ss.str());
+      temp_ss.str("");
+      temp_ss.clear();
     } else {
       *size = 0;
       *maxNumRecords = 0;
@@ -342,13 +350,12 @@ namespace caffe {
       }
     } else if (record->kind == CUPTI_ACTIVITY_KIND_OVERHEAD) {
       CUpti_ActivityOverhead *overhead = reinterpret_cast<CUpti_ActivityOverhead *> (record);
-      static string file_name = GetCurrentTime();
       stringstream temp_ss;
 
-      LOG(INFO) << "OVERHEAD: " << getActivityKindString(overhead->overheadKind) << "," << static_cast<double>((overhead->start - overhead->end)) / 1000000 << "ms," << getActivityObjectKindString(overhead->objectKind) << std::endl;
-      temp_ss << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) / 1000000 << " ms," << getActivityObjectKindString(overhead->objectKind);
+      LOG(INFO) << "OVERHEAD: " << getActivityKindString(overhead->overheadKind) << "," << static_cast<double>((overhead->start - overhead->end)) / NS2MS << "ms," << getActivityObjectKindString(overhead->objectKind) << std::endl;
+      temp_ss << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) / NS2MS << " ms," << getActivityObjectKindString(overhead->objectKind);
 
-      InfoLog::Get().RecordInfoLog(file_name, "-OVERHEAD", temp_ss.str());
+      InfoLog::Get().RecordInfoLog("cupti_overhead", "CUPTI-OVERHEAD", temp_ss.str());
 
       temp_ss.str("");
       temp_ss.clear();

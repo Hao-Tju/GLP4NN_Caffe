@@ -7,6 +7,7 @@
 
 #include "caffe/util/kernel_analyzer.hpp"
 #include "caffe/util/benchmark.hpp"
+#include "caffe/util/info_log.hpp"
 
 #define MIN(a, b) ((std::ceil(a) < std::ceil(b)) ? std::ceil(a) : std::ceil(b))
 
@@ -123,8 +124,8 @@ namespace caffe {
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
 
       double analyzer_overhead = analyzer_timer.MicroSeconds();
-      temp_ss << current_key_str_ << "," << analyzer_overhead;
-      InfoLog::Get().RecordInfoLog(GetCurrentTime(), "-ANALYZER", temp_ss.str());
+      temp_ss << current_key_str_ << "," << analyzer_overhead << "us";
+      InfoLog::Get().RecordInfoLog("analyzer_overhead", GetCurrentTime() + "-ANALYZER", temp_ss.str());
 
       temp_ss.str("");
       temp_ss.clear();

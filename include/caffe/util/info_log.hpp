@@ -35,6 +35,8 @@ class InfoLog
 
     void SetDevice(int device_id);
 
+    void SetFolder(string net_folder);
+
     void RecordInfoLog(string label_str, string log_type, string log_val);
 
   protected:
