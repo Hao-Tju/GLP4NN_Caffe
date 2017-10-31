@@ -120,8 +120,8 @@ namespace caffe {
       pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
 
       LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
-      AsyncResTracker::Get().ProfilerUnlock();
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
+      AsyncResTracker::Get().ProfilerUnlock();
 
       double analyzer_overhead = analyzer_timer.MicroSeconds();
       temp_ss << current_key_str_ << "," << analyzer_overhead << "us";

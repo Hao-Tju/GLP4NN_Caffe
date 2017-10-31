@@ -2,6 +2,7 @@
 
 #include <boost/thread.hpp>
 #include <cstdlib>
+#include <cstring>
 
 #include "caffe/util/gpu_manager.hpp"
 
@@ -32,8 +33,8 @@ namespace caffe {
       pool_size = GetCUDASettings(this->device_id_);
     }
 
-    LOG(INFO) << "Pool size: " << pool_size;
-    if (this->handle_num_ == pool_size) {
+    LOG(INFO) << "Pool size: " << handle_num_ << " ---> " << pool_size;
+    if (this->handle_num_ >= pool_size) {
       return ;
     } else {
       cudaStream_t* temp_streams = NULL;
@@ -49,15 +50,18 @@ namespace caffe {
 #endif
       }
 
-      this->streams_ = static_cast<cudaStream_t*>(malloc(pool_size * sizeof(cudaStream_t)));
-      this->cublas_handles_ = static_cast<cublasHandle_t*>(malloc(pool_size * sizeof(cublasHandle_t)));
+      //this->streams_ = static_cast<cudaStream_t*>(malloc(pool_size * sizeof(cudaStream_t)));
+      //this->cublas_handles_ = static_cast<cublasHandle_t*>(malloc(pool_size * sizeof(cublasHandle_t)));
+      this->streams_ = new cudaStream_t[pool_size];
+      this->cublas_handles_ = new cublasHandle_t[pool_size];
 
       if (this->streams_ == NULL || this->cublas_handles_ == NULL) {
         LOG(FATAL) << "Failed to malloc GpuStreamPool member handler.";
       }
 
 #ifdef USE_CUDNN
-      this->cudnn_handles_ = static_cast<cudnnHandle_t*>(malloc(pool_size * sizeof(cudnnHandle_t)));
+      //this->cudnn_handles_ = static_cast<cudnnHandle_t*>(malloc(pool_size * sizeof(cudnnHandle_t)));
+      this->cudnn_handles_ = new cudnnHandle_t[pool_size];
       if (this->cudnn_handles_ == NULL) {
         LOG(FATAL) << "Failed to malloc cuDNN handler.";
       }
@@ -82,14 +86,14 @@ namespace caffe {
 
       if (this->handle_num_ != 0) {
         if (temp_streams != NULL) {
-          free(temp_streams);
+          delete[] temp_streams;
         }
         if (temp_cublas_handler != NULL) {
-          free(temp_cublas_handler);
+          delete[] temp_cublas_handler;
         }
 #ifdef USE_CUDNN
         if (temp_cudnn_handler != NULL) {
-          free(temp_cudnn_handler);
+          delete[] temp_cudnn_handler;
         }
 #endif
       }
@@ -101,6 +105,11 @@ namespace caffe {
   GpuStreamPool::GpuStreamPool() {
     CUDA_CHECK(cudaGetDevice(&this->device_id_));
     this->handle_num_ = 0;
+    this->streams_ = NULL;
+    this->cublas_handles_ = NULL;
+#ifdef USE_CUDNN
+    this->cudnn_handles_ = NULL;
+#endif
 
     CUBLAS_CHECK(cublasCreate(&default_cublas_handle_));
     CUBLAS_CHECK(cublasSetStream(default_cublas_handle_, 0));

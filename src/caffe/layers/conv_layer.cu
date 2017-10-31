@@ -18,10 +18,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     int parallel_degree = 0;
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
-    if (!parallel_degree) {
-      LOG(INFO) << "(Before Analyzing) Parallel Degree of " << this->layer_param().name() << "@"
-                << "LOOP1 is: " << parallel_degree << ".";
-    } else {
+    if (parallel_degree) {
       this->SetColBufferNum(parallel_degree);
     }
 #endif

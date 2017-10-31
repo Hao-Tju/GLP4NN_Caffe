@@ -8,7 +8,6 @@ if [ $# -lt 1 ]; then
   exit
 fi
 
-:<<COMMENT
 if [ -f ./Makefile.config.prof ]; then
   echo "Now is doing regular caffe training process ..."
 fi
@@ -18,13 +17,12 @@ if [ -f ./Makefile.config.serial ]; then
 fi
 
 # clean former executable files and object files.
-make clean
 make
 
 i=0
 while read -r line || [ -n "$line" ]; do
   $line
-  if [ -f ./Makefile.config.serial && -f ./LOG/CUPTI-OVERHEAD.csv ]; then
+  if [ -f ./Makefile.config.serial ] && [ -f ./LOG/CUPTI-OVERHEAD.csv ]; then
     echo $i
     mv ./LOG/CUPTI-OVERHEAD.csv ./LOG/CUPTI_OVERHEAD_$i.csv
     i=$(($i+1))
@@ -45,14 +43,13 @@ fi
 
 make clean
 make
-COMMENT
 
 i=0
 while read -r line || [ -n "$line" ]; do
   $line
 
   echo "Finished $line"
-  if [ -f ./Makefile.config.serial && -f ./LOG/CUPTI-OVERHEAD.csv ]; then
+  if [ -f ./Makefile.config.serial ] && [ -f ./LOG/CUPTI-OVERHEAD.csv ]; then
     echo "[CURRENT CUPTI-OVERHEAD]: $i"
     mv ./LOG/CUPTI-OVERHEAD.csv ./LOG/CUPTI-OVERHEAD-$i.csv
     i=$(($i++))
