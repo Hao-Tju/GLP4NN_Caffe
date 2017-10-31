@@ -32,6 +32,7 @@ namespace caffe {
       pool_size = GetCUDASettings(this->device_id_);
     }
 
+    LOG(INFO) << "Pool size: " << pool_size;
     if (this->handle_num_ == pool_size) {
       return ;
     } else {

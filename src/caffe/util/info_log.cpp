@@ -49,7 +49,7 @@ namespace caffe {
     this->base_log_folder_ += net_folder;
 
     boost::filesystem::path log_dir(this->base_log_folder_.c_str());
-    if (!boost::filesystem::create_directory(log_dir)) {
+    if (!boost::filesystem::exists(log_dir) and !boost::filesystem::create_directory(log_dir)) {
       LOG(FATAL) << "Failed to create folder: " << this->base_log_folder_;
     }
 

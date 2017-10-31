@@ -399,6 +399,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     const Dtype* weights, Dtype* output, int stream_id, bool skip_im2col) {
   const Dtype* col_buff = input;
+  LOG(INFO) << "CURRENT col_buffer_: " << (stream_id == -1 ? 0 : stream_id);
   if (!is_1x1_) {
     if (!skip_im2col) {
       // Modified by Hao Fu.

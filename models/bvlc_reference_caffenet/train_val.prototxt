@@ -70,7 +70,7 @@ layer {
     num_output: 96
     kernel_size: 11
     stride: 4
-    engie: CAFFE
+    engine: CAFFE
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -127,7 +127,7 @@ layer {
     pad: 2
     kernel_size: 5
     group: 2
-    engie: CAFFE
+    engine: CAFFE
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -183,7 +183,7 @@ layer {
     num_output: 384
     pad: 1
     kernel_size: 3
-    engie: CAFFE
+    engine: CAFFE
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -218,7 +218,7 @@ layer {
     pad: 1
     kernel_size: 3
     group: 2
-    engie: CAFFE
+    engine: CAFFE
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -253,7 +253,7 @@ layer {
     pad: 1
     kernel_size: 3
     group: 2
-    engie: CAFFE
+    engine: CAFFE
     weight_filler {
       type: "gaussian"
       std: 0.01

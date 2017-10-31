@@ -23,7 +23,7 @@ private:                                                        \
   classname& operator=(const classname&)                        \
 
 #define GetCUDAConnNum(major, minor, num) {   \
-  if (major == 3 && minor == 2) {             \
+  if (major == 3 && (minor == 2 || minor == 5)) {             \
     num = 8;                                  \
   } else if ((major == 3 && minor == 0) ||    \
       (major == 5 && minor == 3)) {           \
