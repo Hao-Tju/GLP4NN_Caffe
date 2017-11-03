@@ -385,7 +385,7 @@ namespace caffe {
       }
     }
 
-    LOG(INFO) << "Minimum number of recorded kernels is " << min_invocations << ".";
+    LOG(INFO) << "Total number of recorded kernels: " << timestamp_vec_.size() << ". Minimum number of recorded kernels is " << min_invocations << ".";
     std::sort(timestamp_vec_.begin(), timestamp_vec_.end(), Compare<Timestamp_t>);
 
     unsigned int kernels_per_iter = timestamp_vec_.size() / min_invocations;
