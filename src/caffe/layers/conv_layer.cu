@@ -21,6 +21,8 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     }
 #endif
     if (!FLAGS_gemmOpt) {
+      InfoLog::Get().SetFolder("Unoptimized");
+      LOG(INFO) << "FLAGS_gemmOpt: " << FLAGS_gemmOpt;
       for (int n = 0; n < this->num_; n ++) {
         int stream_id = parallel_degree ? n % parallel_degree : -1;
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
@@ -33,6 +35,8 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
     } else {
+      InfoLog::Get().SetFolder("Optimized");
+      LOG(INFO) << "FLAGS_gemmOpt: " << FLAGS_gemmOpt;
       for (int n = 0; n < this->num_; n += parallel_degree) {
         int stream_id = parallel_degree ? n % parallel_degree : -1;
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
