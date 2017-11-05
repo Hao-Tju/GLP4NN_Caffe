@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include <gflags/gflags.h>
+
 // Added by Hao Fu.
 #ifndef CPU_ONLY
 #ifdef USE_PROF
@@ -14,6 +16,9 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/im2col.hpp"
+
+DEFINE_bool(gemmOpt, false,
+    "Optional; loop unrolling flag.");
 
 namespace caffe {
 
@@ -62,6 +67,8 @@ class BaseConvolutionLayer : public Layer<Dtype> {
 #ifndef CPU_ONLY
   // Added by Hao Fu.
   void SetColBufferNum (int buffer_num);
+  void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
+      Dtype* output, int parallel_degree = -1, bool skip_im2col = false);
 
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
       Dtype* output, int stream_id = -1, bool skip_im2col = false);

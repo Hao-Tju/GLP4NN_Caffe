@@ -22,10 +22,6 @@ namespace caffe {
     return *(thread_gsp_instance_.get());
   }
 
-  void GpuStreamPool::Reset() {
-    thread_gsp_instance_.reset();
-  }
-
   void GpuStreamPool::SetPoolSize(size_t pool_size) {
     if (pool_size > GetCUDASettings(this->device_id_)) {
       LOG(INFO) << "Maximum concurrent streams between DEVICE " << this->device_id_
@@ -50,8 +46,6 @@ namespace caffe {
 #endif
       }
 
-      //this->streams_ = static_cast<cudaStream_t*>(malloc(pool_size * sizeof(cudaStream_t)));
-      //this->cublas_handles_ = static_cast<cublasHandle_t*>(malloc(pool_size * sizeof(cublasHandle_t)));
       this->streams_ = new cudaStream_t[pool_size];
       this->cublas_handles_ = new cublasHandle_t[pool_size];
 
@@ -60,7 +54,6 @@ namespace caffe {
       }
 
 #ifdef USE_CUDNN
-      //this->cudnn_handles_ = static_cast<cudnnHandle_t*>(malloc(pool_size * sizeof(cudnnHandle_t)));
       this->cudnn_handles_ = new cudnnHandle_t[pool_size];
       if (this->cudnn_handles_ == NULL) {
         LOG(FATAL) << "Failed to malloc cuDNN handler.";
@@ -135,10 +128,10 @@ namespace caffe {
 #endif
 
     if (this->handle_num_ != 0) {
-      free(this->streams_);
-      free(this->cublas_handles_);
+      delete[] this->streams_;
+      delete[] this->cublas_handles_;
 #ifdef USE_CUDNN
-      free(this->cudnn_handles_);
+      delete[] this->cudnn_handles_;
 #endif
     }
     this->handle_num_ = 0;
@@ -179,10 +172,10 @@ namespace caffe {
           CUDA_CHECK(cudaStreamDestroy(this->streams_[i]));
         }
 
-        free(this->streams_);
-        free(this->cublas_handles_);
+        delete[] this->streams_;
+        delete[] free(this->cublas_handles_;
 #ifdef USE_CUDNN
-        free(this->cudnn_handles_);
+        delete[] free(this->cudnn_handles_;
 #endif
       }
     }

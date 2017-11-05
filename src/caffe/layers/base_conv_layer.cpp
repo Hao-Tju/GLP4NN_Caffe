@@ -397,6 +397,51 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
+    const Dtype* weights, Dtype* output, int parallel_degree, bool skip_im2col) {
+  const Dtype* col_buff = input;
+  if (!is_1x1_) {
+    if (!skip_im2col) {
+      // Modified by Hao Fu.
+      // conv_im2col_gpu(input, col_buffer_.mutable_gpu_data(), stream_id);
+      if (parallel_degree < 2) {
+        conv_im2col_gpu(input, col_buffer_[0]->mutable_gpu_data(), stream_id);
+      } else {
+        for (int stream_idx = 1; stream_idx <= parallel_degree; ++ stream_idx) {
+          conv_im2col_gpu(input, col_buffer_[stream_idx]->mutable_gpu_data(), stream_id);
+        }
+      }
+    }
+    // Modified by Hao Fu.
+    // col_buff = col_buffer_.gpu_data();
+    if (parallel_degree < 2) {
+      col_buff = col_buffer_[0]->gpu_data();
+    } else {
+      for (int stream_idx = 1; stream_idx <= parallel_degree; ++ stream_idx) {
+        col_buff = col_buffer_[stream_idx]->gpu_data();
+      }
+    }
+  }
+  for (int g = 0; g < group_; ++g) {
+    // TODO: Needed to consider the group_ argument.
+    // Modified by Hao Fu.
+    if (parallel_degree < 2) {
+      caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
+          group_, conv_out_spatial_dim_, kernel_dim_,
+          (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+          (Dtype)0., output + output_offset_ * g, -1);
+    } else {
+      for (int stream_idx = 1; stream_idx <= parallel_degree; ++ stream_idx) {
+        caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
+            group_, conv_out_spatial_dim_, kernel_dim_,
+            (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+            (Dtype)0., output + output_offset_ * g, stream_idx);
+      }
+    }
+  }
+}
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     const Dtype* weights, Dtype* output, int stream_id, bool skip_im2col) {
   const Dtype* col_buff = input;
   if (!is_1x1_) {

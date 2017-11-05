@@ -103,6 +103,11 @@ namespace caffe {
        */
       ~AsyncResTracker();
 
+      /**
+       * @brief   Object access method.
+       *
+       * Singleton asynchronous resource tracker object.
+       */
       static AsyncResTracker& Get();
 
       /**
@@ -188,6 +193,7 @@ namespace caffe {
        * @return  Index of the kernel in kernel_vec_ptr. It returns -1 if the kernel is not found.
        */
       static int FindKernelConfig(const vector<Kernel_t> *kernel_vec_ptr, Kernel_t& kernel);
+
       /**
        * @brief   GPU device setting function.
        * @param[in] device_id       New device needed to be profiled.
@@ -250,6 +256,8 @@ namespace caffe {
       static int profiling_device_id_;
       // Member variable used to identify whether start profiling.
       static bool profiler_flag_;
+      // Record kind of the current activity profiled.
+      static CUpti_ActivityKind cupti_act_kind_;
 
       // Static start timestamp of the profiling process.
       static uint64_t static_startTimestamp_;

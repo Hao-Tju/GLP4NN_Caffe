@@ -44,6 +44,8 @@
 namespace caffe {
   static boost::thread_specific_ptr<KernelAnalyzer> thread_kernel_analyzer_;
 
+  __global__ void sync() {}
+
   string GetCurrentTime() {
     time_t curr_time = time(NULL);
     tm *local_time = localtime(&curr_time);
@@ -129,6 +131,8 @@ namespace caffe {
 
       temp_ss.str("");
       temp_ss.clear();
+    } else {
+      sync<<<1,1>>>();
     }
 
     return ;

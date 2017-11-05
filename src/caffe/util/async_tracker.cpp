@@ -137,25 +137,25 @@ namespace caffe {
     this->kernel_counter_ = 0;
 
     if (!kernels_vec_.empty()) {
-      kernels_vec_.clear();
+      this->kernels_vec_.clear();
     }
     if (!timestamp_vec_.empty()) {
-      timestamp_vec_.clear();
+      this->timestamp_vec_.clear();
     }
 
     if (seg_tree_ != NULL) {
-      delete[] seg_tree_;
+      delete[] this->seg_tree_;
     }
-    next_node_idx_ = 0;
-    tree_nodes_count_ = 0;
-    seg_tree_ = NULL;
+    this->next_node_idx_ = 0;
+    this->tree_nodes_count_ = 0;
+    this->seg_tree_ = NULL;
 
     if (idle_time_stream_.is_open()) {
-      idle_time_stream_.close();
+      this->idle_time_stream_.close();
     }
 
     if (kernel_stream_.is_open()) {
-      kernel_stream_.close();
+      this->kernel_stream_.close();
     }
   }
 
@@ -169,6 +169,7 @@ namespace caffe {
     //                  "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
     CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
     CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
+    cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
 
     // Register functions for requesting buffer or processing buffer.
     CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
@@ -398,6 +399,10 @@ namespace caffe {
 
     LOG(INFO) << "total_launch_overhead = " << total_launch_overhead << "; kernels_per_iter = " << kernels_per_iter << "; min_invocations = " << min_invocations;
     kernel_launch_overhead_ = total_launch_overhead / ((kernels_per_iter - 1) * min_invocations);
+
+    stringstream temp_ss;
+    temp_ss << "timestamp_vec_buffer," << sizeof(Timestamp_t) * timestamp_vec_.size() << "," << "kernel_temp_buffer," << sizeof(Kernel_t) * kernels_vec_.size();
+    InfoLog::Get().RecordInfoLog("buffer_overhead", "TEMP-BUFFER-OVERHEAD", temp_ss.str());
 
     LOG(INFO) << "The launch overhead of a kernel is " << kernel_launch_overhead_ << "!";
 

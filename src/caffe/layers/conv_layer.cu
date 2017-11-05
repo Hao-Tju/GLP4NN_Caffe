@@ -4,8 +4,6 @@
 
 namespace caffe {
 
-__global__ void sync_convs() {}
-
 template <typename Dtype>
 void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -22,64 +20,36 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       this->SetColBufferNum(parallel_degree);
     }
 #endif
-    // for (int n = 0; n < this->num_; n += parallel_degree) {
-    for (int n = 0; n < this->num_; n ++) {
-      int stream_id = parallel_degree ? n % parallel_degree : -1;
-      //for (int k = 0; k < parallel_degree && (n + k) < this->num_; ++ k) {
+    if (!FLAGS_gemmOpt) {
+      for (int n = 0; n < this->num_; n ++) {
+        int stream_id = parallel_degree ? n % parallel_degree : -1;
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
             top_data + n * this->top_dim_, stream_id);
-      //}
 
-      if (this->bias_term_) {
-        const Dtype* bias = this->blobs_[1]->gpu_data();
+        if (this->bias_term_) {
+          const Dtype* bias = this->blobs_[1]->gpu_data();
 
-        //for (int k = 0; k < parallel_degree && (n + k) < this->num_; ++ k) {
           this->forward_gpu_bias(top_data + n * this->top_dim_, bias, stream_id);
-        //}
+        }
+      }
+    } else {
+      for (int n = 0; n < this->num_; n += parallel_degree) {
+        int stream_id = parallel_degree ? n % parallel_degree : -1;
+        this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
+            top_data + n * this->top_dim_, parallel_degree);
+
+        if (this->bias_term_) {
+          const Dtype* bias = this->blobs_[1]->gpu_data();
+
+          for (int k_idx = 1; k_idx <= parallel_degree; ++ k_idx) {
+            this->forward_gpu_bias(top_data + n * this->top_dim_, bias, k_idx);
+          }
+        }
       }
     }
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStop();
 #endif
-    /*
-    if (this->parallel_degree_ <= 1) {
-      for (int n = 0; n < this->num_; ++n) {
-        this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
-            top_data + n * this->top_dim_);
-        if (this->bias_term_) {
-          const Dtype* bias = this->blobs_[1]->gpu_data();
-          this->forward_gpu_bias(top_data + n * this->top_dim_, bias);
-        }
-      }
-    } else {
-      // for (int n = 0; n < this->num_; ++ n) {
-      for (int n = 0; n < this->num_; n += this->parallel_degree_) {
-      //   int stream_id = n % this->parallel_degree_;
-        for (int i = 0; i < this->parallel_degree_; ++ i) {
-      //   this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
-      //       top_data + n * this->top_dim_,
-      //       stream_id);
-          if ((n + i) < this->num_) {
-            this->forward_gpu_gemm(bottom_data + (n+i) * this->bottom_dim_, weight,
-                top_data + (n+i) * this->top_dim_,
-                i);
-          }
-        }
-        if (this->bias_term_) {
-          const Dtype* bias = this->blobs_[1]->gpu_data();
-          for (int i = 0; i < this->parallel_degree_; ++ i) {
-          // this->forward_gpu_bias(top_data + n * this->top_dim_, bias,
-          //     stream_id);
-            if ((n + i) < this->num_) {
-              this->forward_gpu_bias(top_data + (n+i) * this->top_dim_, bias,
-                  i);
-            }
-          }
-        }
-      }
-      sync_convs<<<1,1>>>();
-    }
-    */
   }
 }
 
