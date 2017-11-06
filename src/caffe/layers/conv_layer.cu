@@ -2,7 +2,12 @@
 
 #include "caffe/layers/conv_layer.hpp"
 
+DEFINE_bool(gemmOpt, false,
+    "Optional; loop unrolling flag.");
+
 namespace caffe {
+
+__global__ void sync() {}
 
 template <typename Dtype>
 void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
@@ -20,9 +25,12 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       this->SetColBufferNum(parallel_degree);
     }
 #endif
+    static bool folder_flag = true;
     if (!FLAGS_gemmOpt) {
-      InfoLog::Get().SetFolder("Unoptimized");
-      LOG(INFO) << "FLAGS_gemmOpt: " << FLAGS_gemmOpt;
+      if (folder_flag) {
+        InfoLog::Get().SetFolder("Unoptimized");
+        folder_flag = false;
+      }
       for (int n = 0; n < this->num_; n ++) {
         int stream_id = parallel_degree ? n % parallel_degree : -1;
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
@@ -35,24 +43,30 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
     } else {
-      InfoLog::Get().SetFolder("Optimized");
-      LOG(INFO) << "FLAGS_gemmOpt: " << FLAGS_gemmOpt;
+      if (folder_flag) {
+        InfoLog::Get().SetFolder("Optimized");
+        folder_flag = false;
+      }
+      if (parallel_degree == 0) {
+        parallel_degree = 1;
+      }
       for (int n = 0; n < this->num_; n += parallel_degree) {
-        int stream_id = parallel_degree ? n % parallel_degree : -1;
+        // int stream_id = parallel_degree ? n % parallel_degree : -1;
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
-            top_data + n * this->top_dim_, parallel_degree);
+            top_data + n * this->top_dim_, 'y', parallel_degree);
 
         if (this->bias_term_) {
           const Dtype* bias = this->blobs_[1]->gpu_data();
 
           for (int k_idx = 1; k_idx <= parallel_degree; ++ k_idx) {
-            this->forward_gpu_bias(top_data + n * this->top_dim_, bias, k_idx);
+            this->forward_gpu_bias(top_data + n * this->top_dim_, bias, k_idx - 1);
           }
         }
       }
     }
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStop();
+    sync<<<1,1>>>();
 #endif
   }
 }

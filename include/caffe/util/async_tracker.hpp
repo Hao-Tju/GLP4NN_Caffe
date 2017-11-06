@@ -257,7 +257,7 @@ namespace caffe {
       // Member variable used to identify whether start profiling.
       static bool profiler_flag_;
       // Record kind of the current activity profiled.
-      static CUpti_ActivityKind cupti_act_kind_;
+      // static CUpti_ActivityKind cupti_act_kind_;
 
       // Static start timestamp of the profiling process.
       static uint64_t static_startTimestamp_;

@@ -44,8 +44,6 @@
 namespace caffe {
   static boost::thread_specific_ptr<KernelAnalyzer> thread_kernel_analyzer_;
 
-  __global__ void sync() {}
-
   string GetCurrentTime() {
     time_t curr_time = time(NULL);
     tm *local_time = localtime(&curr_time);
@@ -125,14 +123,14 @@ namespace caffe {
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
       AsyncResTracker::Get().ProfilerUnlock();
 
+      LOG(INFO) << "Asynchronous resource tracker stop!";
+
       double analyzer_overhead = analyzer_timer.MicroSeconds();
       temp_ss << current_key_str_ << "," << analyzer_overhead << "us";
       InfoLog::Get().RecordInfoLog("analyzer_overhead", GetCurrentTime() + "-ANALYZER", temp_ss.str());
 
       temp_ss.str("");
       temp_ss.clear();
-    } else {
-      sync<<<1,1>>>();
     }
 
     return ;

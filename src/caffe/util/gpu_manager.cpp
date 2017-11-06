@@ -22,6 +22,11 @@ namespace caffe {
     return *(thread_gsp_instance_.get());
   }
 
+  void GpuStreamPool::Reset() {
+    thread_gsp_instance_.reset();
+    return ;
+  }
+
   void GpuStreamPool::SetPoolSize(size_t pool_size) {
     if (pool_size > GetCUDASettings(this->device_id_)) {
       LOG(INFO) << "Maximum concurrent streams between DEVICE " << this->device_id_
@@ -173,9 +178,9 @@ namespace caffe {
         }
 
         delete[] this->streams_;
-        delete[] free(this->cublas_handles_;
+        delete[] this->cublas_handles_;
 #ifdef USE_CUDNN
-        delete[] free(this->cudnn_handles_;
+        delete[] this->cudnn_handles_;
 #endif
       }
     }
