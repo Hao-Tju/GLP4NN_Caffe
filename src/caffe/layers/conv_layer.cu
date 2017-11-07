@@ -19,13 +19,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
     // Modified by Hao Fu.
     int parallel_degree = 0;
+    static bool folder_flag = true;
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     if (parallel_degree) {
       this->SetColBufferNum(parallel_degree);
     }
 #endif
-    static bool folder_flag = true;
     if (!FLAGS_gemmOpt) {
       if (folder_flag) {
         InfoLog::Get().SetFolder("Unoptimized");
