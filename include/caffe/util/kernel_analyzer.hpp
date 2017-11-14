@@ -101,6 +101,8 @@ namespace caffe {
        */
       int ParallelDegree(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
 
+      void RecordParallelDegree();
+
       /**
        * @brief  Device setting function.
        *
