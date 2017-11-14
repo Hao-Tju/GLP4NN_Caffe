@@ -1,0 +1,4 @@
+./examples/mnist/train_lenet_cpnn.sh
+./examples/cifar10/train_quick_cpnn.sh
+./examples/siamese/train_mnist_siamese_cpnn.sh
+./examples/imagenet/train_caffenet_cpnn.sh

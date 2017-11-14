@@ -65,6 +65,8 @@ namespace caffe{
        */
       static GpuStreamPool& Get();
 
+      void Reset();
+
       /**
        * @brief   Pool size setting function.
        * @param[in] pool_size   The required pool size.

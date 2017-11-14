@@ -7,6 +7,8 @@ DEFINE_int32(gemmOpt, 0,
 
 namespace caffe {
 
+__global__ void sync() {}
+
 template <typename Dtype>
 void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -80,6 +82,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     }
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStop();
+    sync<<<1,1>>>();
 #endif
   }
 }

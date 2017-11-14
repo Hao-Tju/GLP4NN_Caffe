@@ -17,9 +17,6 @@
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/im2col.hpp"
 
-DEFINE_bool(gemmOpt, false,
-    "Optional; loop unrolling flag.");
-
 namespace caffe {
 
 /**

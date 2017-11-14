@@ -169,7 +169,7 @@ namespace caffe {
     //                  "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
     CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
     CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
-    cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
+    // cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
 
     // Register functions for requesting buffer or processing buffer.
     CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
