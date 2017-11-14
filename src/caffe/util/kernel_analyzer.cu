@@ -125,17 +125,29 @@ namespace caffe {
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
       AsyncResTracker::Get().ProfilerUnlock();
 
+      LOG(INFO) << "Asynchronous resource tracker stop!";
+
       double analyzer_overhead = analyzer_timer.MicroSeconds();
       temp_ss << current_key_str_ << "," << analyzer_overhead << "us";
       InfoLog::Get().RecordInfoLog("analyzer_overhead", GetCurrentTime() + "-ANALYZER", temp_ss.str());
 
       temp_ss.str("");
       temp_ss.clear();
-    } else {
-      sync<<<1,1>>>();
     }
+    sync<<<1,1>>>();
 
     return ;
+  }
+
+  void KernelAnalyzer::RecordParallelDegree() {
+    stringstream temp_ss;
+    for (auto& pd_record : pdegree_map_) {
+      temp_ss << pd_record.first << "," << pd_record.second << std::endl;
+    }
+
+    InfoLog::Get().RecordInfoLog("", "ParallelDegree_Record", temp_ss.str());
+    temp_ss.str("");
+    temp_ss.clear();
   }
 
   int KernelAnalyzer::ParallelDegree(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id) {
@@ -155,9 +167,12 @@ namespace caffe {
       LOG(INFO) << "ERROR! There is no kernel recorded.";
     }
 
-    stringstream temp_ss;
     // Bounds settings.
-    double launch_bnd = 0.0, sm_bnd = 0.0, regs_bnd = 0.0, threads_bnd = 0.0;
+    // launch_bnd: The maximum number of kernels that can be launched concurrently subject to the execution time.
+    // sm_bnd: The maximum number of kernels that can be launched concurrently subject to the shared memory.
+    // threads_bnd: The maximum number of kernels that can be launched concurrently subject to the maxThreadsPerMultiProcessor.
+    // k_num_bnd: The final upper bounds of the number of concurrent kernels.
+    double launch_bnd = 0.0, sm_bnd = 0.0, /*regs_bnd = 0.0,*/ threads_bnd = 0.0;
     double k_num_bnd = 0.0;
     double coef_a = 0.0, coef_b = 0.0, coef_c = 0.0;
     double coef_k = 0.0, constant_term = 0.0;
@@ -166,91 +181,100 @@ namespace caffe {
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
 
-      launch_bnd = static_cast<double>((kernels->at(i).duration + t_launch - 1) / t_launch);
+      launch_bnd = (kernels->at(i).duration + t_launch - 1) / t_launch;
 
       coef_a = blocks_k;
       coef_b = static_cast<double>(gpu_prop.multiProcessorCount - 1);
       if (kernels->at(i).smPerBlock != 0) {
-        coef_c = static_cast<double>(-1 * (gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount)) / static_cast<double>(kernels->at(i).smPerBlock);
+        coef_c = -1 * static_cast<double>(gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount) / static_cast<double>(kernels->at(i).smPerBlock);
         sm_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
-        k_num_bnd = MIN(launch_bnd, sm_bnd);
+        k_num_bnd = MIN(launch_bnd, static_cast<int>(sm_bnd));
       } else {
         k_num_bnd = launch_bnd;
       }
 
+      /*
       coef_c = static_cast<double>(-1 * gpu_prop.regsPerMultiprocessor * gpu_prop.multiProcessorCount) / static_cast<double>(kernels->at(i).regPerThread * threads_k);
       regs_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
       k_num_bnd = MIN(k_num_bnd, regs_bnd);
+      */
 
-      coef_c = static_cast<double>(-1 * gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount) / static_cast<double>(threads_k);
+      coef_c = -1 * static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount) / static_cast<double>(threads_k);
       threads_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
-      k_num_bnd = MIN(k_num_bnd, threads_bnd);
+      k_num_bnd = MIN(k_num_bnd, static_cast<int>(threads_bnd));
 
-      coef_k = static_cast<double>(blocks_k * threads_k);
-      constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / static_cast<double>(gpu_prop.multiProcessorCount);
-
-      temp_ss << kernels->at(i).name << ": " << k_num_bnd << "; ";
+      coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
+      constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / gpu_prop.multiProcessorCount;
 
       glp_set_col_name(dop_mip, i + 1, kernels->at(i).name.c_str());
       glp_set_col_bnds(dop_mip, i + 1, GLP_DB, 0.0, k_num_bnd);
+      glp_set_col_kind(dop_mip, i + 1, GLP_IV);
       glp_set_obj_coef(dop_mip, i + 1, coef_k);
     }
+    // Set the constant part of the objective function to constant_term.
     glp_set_obj_coef(dop_mip, 0, constant_term);
     // End of bounds settings.
 
-    temp_ss.str("");
-    temp_ss.clear();
-
     // Constraints to the goal.
-    glp_add_rows(dop_mip, 4);
+    const int total_constraints = 3;
+    glp_add_rows(dop_mip, total_constraints);
     if (glp_get_num_rows(dop_mip) == 0 ) {
       LOG(INFO) << "ERROR! There is no kernel recorded.";
     }
 
+    // regs_bias: The bias term of the register constraint formula. DEPRECATED!
+    // sm_bias: The bias term of the shared memory constraint formula.
+    // thread_bias: The bias term of the thread constraint formula.
+    // coef_bias: The bias term used to compute the above three bias terms.
     double regs_bias = 0.0, sm_bias = 0.0, threads_bias = 0.0;
     double coef_bias = static_cast<double>(gpu_prop.multiProcessorCount - 1) / static_cast<double>(gpu_prop.multiProcessorCount);
     double coef_regs = 0.0, coef_sm = 0.0, coef_threads = 0.0;
     int total_kernel_kinds = kernels->size();
-    int *row_idx = new int[1 + 4 * total_kernel_kinds],
-        *col_idx = new int[1 + 4 * total_kernel_kinds];
-    double *coef_k_arr = new double[1 + 4 * total_kernel_kinds];
+    int *row_idx = new int[1 + total_constraints * total_kernel_kinds],
+        *col_idx = new int[1 + total_constraints * total_kernel_kinds];
+    double *coef_k_arr = new double[1 + total_constraints * total_kernel_kinds];
     for (int i = 0; i < total_kernel_kinds; ++ i) {
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
 
       regs_bias += static_cast<double>(kernels->at(i).regPerThread) * threads_k * coef_bias;
       sm_bias += static_cast<double>(kernels->at(i).smPerBlock) * coef_bias;
-      threads_bias += threads_k * coef_bias;
+      threads_bias += static_cast<double>(threads_k) * coef_bias;
 
+      // coef_regs is DEPRECATED!
       coef_regs = static_cast<double>(kernels->at(i).regPerThread) * threads_k * blocks_k
                   / static_cast<double>(gpu_prop.multiProcessorCount);
       coef_sm = static_cast<double>(kernels->at(i).smPerBlock) * blocks_k /
                   static_cast<double>(gpu_prop.multiProcessorCount);
-      coef_threads = threads_k * blocks_k / static_cast<double>(gpu_prop.multiProcessorCount);
+      coef_threads = static_cast<double>(threads_k * blocks_k) / static_cast<double>(gpu_prop.multiProcessorCount);
 
+      /*
       row_idx[i + 1] = static_cast<int>(ceil((i + 1) / static_cast<double>(total_kernel_kinds)));
       col_idx[i + 1] = i + 1;
       coef_k_arr[i + 1] = coef_regs;
-      row_idx[i + 1 + total_kernel_kinds] = static_cast<int>(ceil((i + 1 + total_kernel_kinds) / static_cast<double>(total_kernel_kinds)));
-      col_idx[i + 1 + total_kernel_kinds] = i + 1;
-      coef_k_arr[i + 1 + total_kernel_kinds] = coef_sm;
-      row_idx[i + 1 + total_kernel_kinds * 2] = static_cast<int>(ceil((i + 1 + 2 * total_kernel_kinds) / static_cast<double>(total_kernel_kinds)));
+      */
+      row_idx[i + 1] = static_cast<int>(ceil((i + 1) / static_cast<double>(total_kernel_kinds)));
+      col_idx[i + 1] = i + 1;
+      coef_k_arr[i + 1] = coef_sm;
+      row_idx[i + 1 + total_kernel_kinds * 1] = 1 + static_cast<int>(ceil((i + 1) / static_cast<double>(total_kernel_kinds)));
+      col_idx[i + 1 + total_kernel_kinds * 1] = i + 1;
+      coef_k_arr[i + 1 + total_kernel_kinds * 1] = coef_threads;
+      row_idx[i + 1 + total_kernel_kinds * 2] = 2 + static_cast<int>(ceil((i + 1) / static_cast<double>(total_kernel_kinds)));
       col_idx[i + 1 + total_kernel_kinds * 2] = i + 1;
-      coef_k_arr[i + 1 + total_kernel_kinds * 2] = coef_threads;
-      row_idx[i + 1 + total_kernel_kinds * 3] = static_cast<int>(ceil((i + 1 + 3 * total_kernel_kinds) / static_cast<double>(total_kernel_kinds)));
-      col_idx[i + 1 + total_kernel_kinds * 3] = i + 1;
-      coef_k_arr[i + 1 + total_kernel_kinds * 3] = 1;
+      coef_k_arr[i + 1 + total_kernel_kinds * 2] = 1;
     }
+    /*
     glp_set_row_name(dop_mip, 1, "Regs");
     glp_set_row_bnds(dop_mip, 1, GLP_UP, 0.0, static_cast<double>(gpu_prop.regsPerMultiprocessor - regs_bias));
-    glp_set_row_name(dop_mip, 2, "SMs");
-    glp_set_row_bnds(dop_mip, 2, GLP_UP, 0.0, static_cast<double>(gpu_prop.sharedMemPerMultiprocessor - sm_bias));
-    glp_set_row_name(dop_mip, 3, "Threads");
-    glp_set_row_bnds(dop_mip, 3, GLP_UP, 0.0, static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor - threads_bias));
-    glp_set_row_name(dop_mip, 4, "Concurrency");
-    glp_set_row_bnds(dop_mip, 4, GLP_UP, 0.0, static_cast<double>(GpuStreamPool::Get().GetMaxNumOfStreams()));
+    */
+    glp_set_row_name(dop_mip, 1, "SMs");
+    glp_set_row_bnds(dop_mip, 1, GLP_DB, 0.0, static_cast<double>(gpu_prop.sharedMemPerMultiprocessor - sm_bias));
+    glp_set_row_name(dop_mip, 2, "Threads");
+    glp_set_row_bnds(dop_mip, 2, GLP_DB, 0.0, static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor - threads_bias));
+    glp_set_row_name(dop_mip, 3, "Concurrency");
+    glp_set_row_bnds(dop_mip, 3, GLP_DB, 1.0, static_cast<double>(GpuStreamPool::Get().GetMaxNumOfStreams()));
 
-    glp_load_matrix(dop_mip, total_kernel_kinds * 4, row_idx, col_idx, coef_k_arr);
+    glp_load_matrix(dop_mip, total_kernel_kinds * total_constraints, row_idx, col_idx, coef_k_arr);
     // End of constraints settings and the initialization of MIP parameter matrix.
 
     glp_iocp dop_param;
@@ -280,6 +304,11 @@ namespace caffe {
     delete[] row_idx;
     delete[] col_idx;
     delete[] coef_k_arr;
+
+    if (max_degree_of_parallelism == 0) {
+      LOG(INFO) << "CANNOT LAUNCH KERNELS CONCURRENTLY!";
+      max_degree_of_parallelism = 1;
+    }
 
     return max_degree_of_parallelism;
   }

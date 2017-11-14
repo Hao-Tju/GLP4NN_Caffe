@@ -2,6 +2,9 @@
 
 #include "caffe/layers/conv_layer.hpp"
 
+DEFINE_int32(gemmOpt, 0,
+    "Optional; loop unrolling flag.");
+
 namespace caffe {
 
 template <typename Dtype>
@@ -14,39 +17,63 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
     // Modified by Hao Fu.
     int parallel_degree = 0;
+    static bool folder_flag = true;
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     if (parallel_degree) {
       this->SetColBufferNum(parallel_degree);
     }
 #endif
-    if (!FLAGS_gemmOpt) {
-      InfoLog::Get().SetFolder("Unoptimized");
-      LOG(INFO) << "FLAGS_gemmOpt: " << FLAGS_gemmOpt;
-      for (int n = 0; n < this->num_; n ++) {
-        int stream_id = parallel_degree ? n % parallel_degree : -1;
-        this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
-            top_data + n * this->top_dim_, stream_id);
+    if (FLAGS_gemmOpt == 0) {
+      if (folder_flag) {
+        InfoLog::Get().SetFolder("Unoptimized");
+        folder_flag = false;
+      }
+      for (int n = 0; n < this->num_; n += parallel_degree) {
+        for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+          this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
+              top_data + (n + k_idx) * this->top_dim_, k_idx);
+
+          if (this->bias_term_) {
+            const Dtype* bias = this->blobs_[1]->gpu_data();
+
+            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, k_idx);
+          }
+        }
+      }
+    } else if (FLAGS_gemmOpt == 1) {
+      if (folder_flag) {
+        InfoLog::Get().SetFolder("Optimized_1");
+        folder_flag = false;
+      }
+      for (int n = 0; n < this->num_; n += parallel_degree) {
+        for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+          this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
+              top_data + (n + k_idx) * this->top_dim_, k_idx);
+        }
 
         if (this->bias_term_) {
           const Dtype* bias = this->blobs_[1]->gpu_data();
 
-          this->forward_gpu_bias(top_data + n * this->top_dim_, bias, stream_id);
+          for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, k_idx);
+          }
         }
       }
     } else {
-      InfoLog::Get().SetFolder("Optimized");
-      LOG(INFO) << "FLAGS_gemmOpt: " << FLAGS_gemmOpt;
+      if (folder_flag) {
+        InfoLog::Get().SetFolder("Optimized_2");
+        folder_flag = false;
+      }
       for (int n = 0; n < this->num_; n += parallel_degree) {
-        int stream_id = parallel_degree ? n % parallel_degree : -1;
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
-            top_data + n * this->top_dim_, parallel_degree);
+            top_data + n * this->top_dim_, 'y', parallel_degree);
 
         if (this->bias_term_) {
           const Dtype* bias = this->blobs_[1]->gpu_data();
 
-          for (int k_idx = 1; k_idx <= parallel_degree; ++ k_idx) {
-            this->forward_gpu_bias(top_data + n * this->top_dim_, bias, k_idx);
+          for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, k_idx);
           }
         }
       }
