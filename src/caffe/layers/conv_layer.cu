@@ -22,16 +22,19 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     if (parallel_degree) {
       this->SetColBufferNum(parallel_degree);
-    } else {
-      parallel_degree = 1;
     }
 #endif
+    if (parallel_degree == 0) {
+      parallel_degree = 1;
+    }
     if (FLAGS_gemmOpt == 0) {
+#ifdef USE_PROF
       if (folder_flag) {
         LOG(INFO) << "Now is doing UNOPTIMIZED execution!";
         InfoLog::Get().SetFolder("Unoptimized");
         folder_flag = false;
       }
+#endif
       for (int n = 0; n < this->num_; n += parallel_degree) {
         for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
           this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
@@ -45,11 +48,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
     } else if (FLAGS_gemmOpt == 1) {
+#ifdef USE_PROF
       if (folder_flag) {
         LOG(INFO) << "Now is doing OPTIMIZED_1 execution!";
         InfoLog::Get().SetFolder("Optimized_1");
         folder_flag = false;
       }
+#endif
       for (int n = 0; n < this->num_; n += parallel_degree) {
         for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
           this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
@@ -65,11 +70,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
     } else {
+#ifdef USE_PROF
       if (folder_flag) {
         LOG(INFO) << "Now is doing OPTIMIZED_2 execution!";
         InfoLog::Get().SetFolder("Optimized_2");
         folder_flag = false;
       }
+#endif
       for (int n = 0; n < this->num_; n += parallel_degree) {
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
             top_data + n * this->top_dim_, 'y', parallel_degree);
