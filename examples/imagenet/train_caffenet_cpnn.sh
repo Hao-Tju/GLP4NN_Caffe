@@ -2,6 +2,8 @@
 set -e
 
 ./build/tools/caffe train \
-    --solver=models/bvlc_reference_caffenet/solver.prototxt -nogemmOpt $@
+    --solver=models/bvlc_reference_caffenet/solver.prototxt -gemmOpt=0 $@
 ./build/tools/caffe train \
-    --solver=models/bvlc_reference_caffenet/solver.prototxt -gemmOpt $@
+    --solver=models/bvlc_reference_caffenet/solver.prototxt -gemmOpt=1 $@
+./build/tools/caffe train \
+    --solver=models/bvlc_reference_caffenet/solver.prototxt -gemmOpt=2 $@

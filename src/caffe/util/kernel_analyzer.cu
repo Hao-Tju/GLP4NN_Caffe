@@ -44,6 +44,8 @@
 namespace caffe {
   static boost::thread_specific_ptr<KernelAnalyzer> thread_kernel_analyzer_;
 
+  __global__ void sync() {}
+
   string GetCurrentTime() {
     time_t curr_time = time(NULL);
     tm *local_time = localtime(&curr_time);
@@ -204,6 +206,7 @@ namespace caffe {
       coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
       constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / gpu_prop.multiProcessorCount;
 
+      LOG(INFO) << "k_num_bnd: " << k_num_bnd;
       glp_set_col_name(dop_mip, i + 1, kernels->at(i).name.c_str());
       glp_set_col_bnds(dop_mip, i + 1, GLP_DB, 0.0, k_num_bnd);
       glp_set_col_kind(dop_mip, i + 1, GLP_IV);
@@ -280,6 +283,7 @@ namespace caffe {
     dop_param.presolve = GLP_ON;
     CHECK_GLP_ERROR(glp_intopt(dop_mip, &dop_param), "glp_intopt");
 
+    stringstream temp_ss;
     int max_degree_of_parallelism = 0;
     // double obj_val = glp_mip_obj_val(dop_mip);
     // LOG(INFO) << "OBJECTIVE VALUE: " << obj_val;

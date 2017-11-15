@@ -7,8 +7,6 @@ DEFINE_int32(gemmOpt, 0,
 
 namespace caffe {
 
-__global__ void sync() {}
-
 template <typename Dtype>
 void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -24,10 +22,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     if (parallel_degree) {
       this->SetColBufferNum(parallel_degree);
+    } else {
+      parallel_degree = 1;
     }
 #endif
     if (FLAGS_gemmOpt == 0) {
       if (folder_flag) {
+        LOG(INFO) << "Now is doing UNOPTIMIZED execution!";
         InfoLog::Get().SetFolder("Unoptimized");
         folder_flag = false;
       }
@@ -45,6 +46,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       }
     } else if (FLAGS_gemmOpt == 1) {
       if (folder_flag) {
+        LOG(INFO) << "Now is doing OPTIMIZED_1 execution!";
         InfoLog::Get().SetFolder("Optimized_1");
         folder_flag = false;
       }
@@ -64,6 +66,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       }
     } else {
       if (folder_flag) {
+        LOG(INFO) << "Now is doing OPTIMIZED_2 execution!";
         InfoLog::Get().SetFolder("Optimized_2");
         folder_flag = false;
       }
@@ -82,7 +85,6 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     }
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStop();
-    sync<<<1,1>>>();
 #endif
   }
 }
