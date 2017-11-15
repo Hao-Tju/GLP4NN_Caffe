@@ -28,6 +28,8 @@
   flag = true;                                      \
 }
 
+#define MIN(first, second) (first < second ? first : second)
+
 namespace caffe {
   using std::string;
   using std::fstream;
@@ -379,17 +381,21 @@ namespace caffe {
 
   uint64_t AsyncResTracker::GetKernelLaunchOverhead() {
     unsigned int min_invocations = std::numeric_limits<unsigned int>::max();
-    for (vector<Kernel_t>::iterator iter = kernels_vec_.begin();
-        iter != kernels_vec_.end(); ++ iter) {
-      if (min_invocations > (*iter).invocations) {
-        min_invocations = (*iter).invocations;
-      }
+    for (auto kernel_rec : kernels_vec_) {
+      min_invocations = MIN(min_invocations, kernel_rec.invocations);
+      LOG(INFO) << "Kernel name: " << kernel_rec.name << " [" << kernel_rec.invocations << "].";
     }
 
     LOG(INFO) << "Total number of recorded kernels: " << timestamp_vec_.size() << ". Minimum number of recorded kernels is " << min_invocations << ".";
     std::sort(timestamp_vec_.begin(), timestamp_vec_.end(), Compare<Timestamp_t>);
 
     unsigned int kernels_per_iter = timestamp_vec_.size() / min_invocations;
+    // To avoid additional kernel recorded.
+    for (auto kernel_rec : kernels_vec_) {
+      unsigned int temp_kernels_per_iter = timestamp_vec_.size() / kernel_rec.invocations;
+      kernels_per_iter = MIN(temp_kernels_per_iter, kernels_per_iter);
+    }
+
     uint64_t total_launch_overhead = 0;
     for (int i = 0; i < min_invocations; ++ i) {
       for (int j = 1; j < kernels_per_iter; ++ j) {
