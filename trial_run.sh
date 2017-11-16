@@ -26,6 +26,7 @@ fi
 echo "Current COMMAND configuration: $curr_cmds"
 
 # clean former executable files and object files.
+make clean
 make
 
 i=0
@@ -65,6 +66,6 @@ while read -r line || [ -n "$line" ]; do
   if [ -f ./Makefile.config.serial ] && [ -f ./LOG/CUPTI-OVERHEAD.csv ]; then
     echo "[CURRENT CUPTI-OVERHEAD]: $i"
     mv ./LOG/CUPTI-OVERHEAD.csv ./LOG/CUPTI-OVERHEAD-$i.csv
-    i=$(($i++))
+    i=$(($i+1))
   fi
 done < $curr_cmds
