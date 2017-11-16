@@ -6,7 +6,7 @@
 
 # Added by Hao Fu.
 # Kernel analyzer switch.
-USE_PROF := 1
+# USE_PROF := 1
 
 # CPU-only switch (uncomment to build without GPU support).
 # CPU_ONLY := 1
