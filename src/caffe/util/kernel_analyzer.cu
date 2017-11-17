@@ -44,6 +44,8 @@
 namespace caffe {
   static boost::thread_specific_ptr<KernelAnalyzer> thread_kernel_analyzer_;
 
+  __global__ void sync() {}
+
   string GetCurrentTime() {
     time_t curr_time = time(NULL);
     tm *local_time = localtime(&curr_time);
@@ -170,39 +172,40 @@ namespace caffe {
     // sm_bnd: The maximum number of kernels that can be launched concurrently subject to the shared memory.
     // threads_bnd: The maximum number of kernels that can be launched concurrently subject to the maxThreadsPerMultiProcessor.
     // k_num_bnd: The final upper bounds of the number of concurrent kernels.
-    double launch_bnd = 0.0, sm_bnd = 0.0, /*regs_bnd = 0.0,*/ threads_bnd = 0.0;
+    unsigned int launch_bnd = 0, sm_bnd = 0, threads_bnd = 0;
     double k_num_bnd = 0.0;
-    double coef_a = 0.0, coef_b = 0.0, coef_c = 0.0;
     double coef_k = 0.0, constant_term = 0.0;
     double blocks_k = 0.0, threads_k = 0.0;
+    double total_sm = gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount;
+    double total_threads = gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount;
     for (int i = 0; i < kernels->size(); ++ i) {
+      launch_bnd = sm_bnd = threads_bnd = 0.0;
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
 
       launch_bnd = (kernels->at(i).duration + t_launch - 1) / t_launch;
 
-      coef_a = blocks_k;
-      coef_b = static_cast<double>(gpu_prop.multiProcessorCount - 1);
       if (kernels->at(i).smPerBlock != 0) {
-        coef_c = -1 * static_cast<double>(gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount) / static_cast<double>(kernels->at(i).smPerBlock);
-        sm_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
+        sm_bnd = total_sm / (((kernels->at(i).smPerBlock * blocks_k) > total_sm) ? (kernels->at(i).smPerBlock * blocks_k - total_sm) : (kernels->at(i).smPerBlock * blocks_k));
         k_num_bnd = MIN(launch_bnd, static_cast<int>(sm_bnd));
       } else {
         k_num_bnd = launch_bnd;
       }
 
-      /*
-      coef_c = static_cast<double>(-1 * gpu_prop.regsPerMultiprocessor * gpu_prop.multiProcessorCount) / static_cast<double>(kernels->at(i).regPerThread * threads_k);
-      regs_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
-      k_num_bnd = MIN(k_num_bnd, regs_bnd);
-      */
-
-      coef_c = -1 * static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount) / static_cast<double>(threads_k);
-      threads_bnd = (-1 * coef_b + sqrt(coef_b * coef_b - 4 * coef_a * coef_c)) / (2 * coef_a);
+      threads_bnd = total_threads / (((threads_k * blocks_k) > total_threads) ? (threads_k * blocks_k - total_threads) : (threads_k * blocks_k));
       k_num_bnd = MIN(k_num_bnd, static_cast<int>(threads_bnd));
 
       coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
       constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / gpu_prop.multiProcessorCount;
+
+      LOG(INFO) << kernels->at(i).name << " ---> " << "theads_k: " << threads_k << ", blcoks_k: " << blocks_k << ", k_num_bnd: " << k_num_bnd;
+      if (kernels->at(i).smPerBlock != 0) {
+        LOG(INFO) << "sm_bnd: " << sm_bnd;
+      }
+
+      if (std::ceil(blocks_k / gpu_prop.multiProcessorCount) * threads_k > gpu_prop.maxThreadsPerMultiProcessor) {
+        k_num_bnd = 1;
+      }
 
       glp_set_col_name(dop_mip, i + 1, kernels->at(i).name.c_str());
       glp_set_col_bnds(dop_mip, i + 1, GLP_DB, 0.0, k_num_bnd);
@@ -224,9 +227,9 @@ namespace caffe {
     // sm_bias: The bias term of the shared memory constraint formula.
     // thread_bias: The bias term of the thread constraint formula.
     // coef_bias: The bias term used to compute the above three bias terms.
-    double regs_bias = 0.0, sm_bias = 0.0, threads_bias = 0.0;
+    double sm_bias = 0.0, threads_bias = 0.0;
     double coef_bias = static_cast<double>(gpu_prop.multiProcessorCount - 1) / static_cast<double>(gpu_prop.multiProcessorCount);
-    double coef_regs = 0.0, coef_sm = 0.0, coef_threads = 0.0;
+    double coef_sm = 0.0, coef_threads = 0.0;
     int total_kernel_kinds = kernels->size();
     int *row_idx = new int[1 + total_constraints * total_kernel_kinds],
         *col_idx = new int[1 + total_constraints * total_kernel_kinds];
@@ -235,22 +238,13 @@ namespace caffe {
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
 
-      regs_bias += static_cast<double>(kernels->at(i).regPerThread) * threads_k * coef_bias;
       sm_bias += static_cast<double>(kernels->at(i).smPerBlock) * coef_bias;
       threads_bias += static_cast<double>(threads_k) * coef_bias;
 
-      // coef_regs is DEPRECATED!
-      coef_regs = static_cast<double>(kernels->at(i).regPerThread) * threads_k * blocks_k
-                  / static_cast<double>(gpu_prop.multiProcessorCount);
       coef_sm = static_cast<double>(kernels->at(i).smPerBlock) * blocks_k /
                   static_cast<double>(gpu_prop.multiProcessorCount);
       coef_threads = static_cast<double>(threads_k * blocks_k) / static_cast<double>(gpu_prop.multiProcessorCount);
 
-      /*
-      row_idx[i + 1] = static_cast<int>(ceil((i + 1) / static_cast<double>(total_kernel_kinds)));
-      col_idx[i + 1] = i + 1;
-      coef_k_arr[i + 1] = coef_regs;
-      */
       row_idx[i + 1] = static_cast<int>(ceil((i + 1) / static_cast<double>(total_kernel_kinds)));
       col_idx[i + 1] = i + 1;
       coef_k_arr[i + 1] = coef_sm;
@@ -261,10 +255,6 @@ namespace caffe {
       col_idx[i + 1 + total_kernel_kinds * 2] = i + 1;
       coef_k_arr[i + 1 + total_kernel_kinds * 2] = 1;
     }
-    /*
-    glp_set_row_name(dop_mip, 1, "Regs");
-    glp_set_row_bnds(dop_mip, 1, GLP_UP, 0.0, static_cast<double>(gpu_prop.regsPerMultiprocessor - regs_bias));
-    */
     glp_set_row_name(dop_mip, 1, "SMs");
     glp_set_row_bnds(dop_mip, 1, GLP_DB, 0.0, static_cast<double>(gpu_prop.sharedMemPerMultiprocessor - sm_bias));
     glp_set_row_name(dop_mip, 2, "Threads");
@@ -280,9 +270,10 @@ namespace caffe {
     dop_param.presolve = GLP_ON;
     CHECK_GLP_ERROR(glp_intopt(dop_mip, &dop_param), "glp_intopt");
 
+    stringstream temp_ss;
     int max_degree_of_parallelism = 0;
-    // double obj_val = glp_mip_obj_val(dop_mip);
-    // LOG(INFO) << "OBJECTIVE VALUE: " << obj_val;
+    double obj_val = glp_mip_obj_val(dop_mip);
+    LOG(INFO) << "OBJECTIVE VALUE: " << obj_val;
     int *obj_k_val = new int[total_kernel_kinds];
     for (int i = 0; i < total_kernel_kinds; ++ i) {
       obj_k_val[i] = glp_mip_col_val(dop_mip, i + 1);
