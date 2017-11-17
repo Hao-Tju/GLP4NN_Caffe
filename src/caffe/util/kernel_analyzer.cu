@@ -176,6 +176,8 @@ namespace caffe {
     double k_num_bnd = 0.0;
     double coef_k = 0.0, constant_term = 0.0;
     double blocks_k = 0.0, threads_k = 0.0;
+    double total_sm = gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount;
+    double total_threads = gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount;
     for (int i = 0; i < kernels->size(); ++ i) {
       launch_bnd = sm_bnd = threads_bnd = 0.0;
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
@@ -184,19 +186,19 @@ namespace caffe {
       launch_bnd = (kernels->at(i).duration + t_launch - 1) / t_launch;
 
       if (kernels->at(i).smPerBlock != 0) {
-        sm_bnd = (gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount) / (kernels->at(i).smPerBlock * blocks_k);
+        sm_bnd = total_sm / (((kernels->at(i).smPerBlock * blocks_k) > total_sm) ? (kernels->at(i).smPerBlock * blocks_k - total_sm) : (kernels->at(i).smPerBlock * blocks_k));
         k_num_bnd = MIN(launch_bnd, static_cast<int>(sm_bnd));
       } else {
         k_num_bnd = launch_bnd;
       }
 
-      threads_bnd = (gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount) / (threads_k * blocks_k);
+      threads_bnd = total_threads / (((threads_k * blocks_k) > total_threads) ? (threads_k * blocks_k - total_threads) : (threads_k * blocks_k));
       k_num_bnd = MIN(k_num_bnd, static_cast<int>(threads_bnd));
 
       coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
       constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / gpu_prop.multiProcessorCount;
 
-      LOG(INFO) << kernels->at(i).name << " ---> " << "theads_k: " << threads_k << ", max_thread: " << gpu_prop.maxThreadsPerMultiProcessor << ", blcoks_k: " << blocks_k << ", k_num_bnd: " << k_num_bnd;
+      LOG(INFO) << kernels->at(i).name << " ---> " << "theads_k: " << threads_k << ", blcoks_k: " << blocks_k << ", k_num_bnd: " << k_num_bnd;
       if (kernels->at(i).smPerBlock != 0) {
         LOG(INFO) << "sm_bnd: " << sm_bnd;
       }
