@@ -114,3 +114,9 @@ examples/mnist/mnist_train_lmdb/lock.mdb
 # nohup setting
 nohup.out
 experiment.log
+
+# Makefile
+Makefile
+Makefile.config
+Makefile.config.serial
+Makefile.config.prof
