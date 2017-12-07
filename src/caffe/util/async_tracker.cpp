@@ -29,6 +29,7 @@
 }
 
 #define MIN(first, second) (first < second ? first : second)
+#define MAX(first, second) (first < second ? second : first)
 
 namespace caffe {
   using std::string;
@@ -167,8 +168,8 @@ namespace caffe {
     profiler_flag_ = false;
 
     // Enable tracking kernel information.
-    // CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-    //                  "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+    //CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+    //                "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
     CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
     CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
     // cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
@@ -393,7 +394,7 @@ namespace caffe {
     // To avoid additional kernel recorded.
     for (auto kernel_rec : kernels_vec_) {
       unsigned int temp_kernels_per_iter = timestamp_vec_.size() / kernel_rec.invocations;
-      kernels_per_iter = MIN(temp_kernels_per_iter, kernels_per_iter);
+      kernels_per_iter = MAX(temp_kernels_per_iter, kernels_per_iter);
     }
 
     uint64_t total_launch_overhead = 0;

@@ -157,6 +157,7 @@ namespace caffe {
     glp_prob *dop_mip = glp_create_prob();
     glp_set_prob_name(dop_mip, "DegreeOfParallelismSolver");
     glp_set_obj_dir(dop_mip, GLP_MAX);
+    glp_term_out(GLP_OFF);
 
     if (kernels == NULL || kernels->size() == 0) {
       LOG(FATAL) << "There is no kernels recorded!";
