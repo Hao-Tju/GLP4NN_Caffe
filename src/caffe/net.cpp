@@ -279,9 +279,6 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
 
   // Added by Hao Fu.
   // Initialize the resource tracker.
-// #ifdef USE_PROF
-//   AsyncResTracker::InitAsyncResTracker();
-// #endif
 
   LOG_IF(INFO, Caffe::root_solver()) << "Network initialization done.";
 }

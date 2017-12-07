@@ -161,34 +161,55 @@ namespace caffe {
     }
   }
 
-  void AsyncResTracker::InitAsyncResTracker() {
+  void AsyncResTracker::InitAsyncResTracker(PROFTYPE prof_type) {
     // In default situation, the resource tracker is disabled.
     profiling_device_id_ = -1;
     profiler_flag_ = false;
 
+    // Record current profiling type.
+    static PROFTYPE curr_prof_type = DEFAULT;
     // Enable tracking kernel information.
-    // CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-    //                  "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
-    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
-    CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
-    // cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
+    if (prof_type == CONCURRENT) {
+      if (curr_prof_type == SERIAL) {
+        CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL),
+            "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
+      }
+      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
+    } else {
+      if (curr_prof_type == CONCURRENT) {
+        CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+            "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+      }
+      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
+    }
+    curr_prof_type = prof_type;
 
-    // Register functions for requesting buffer or processing buffer.
-    CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
+    static config_flag = true;
+    if (config_flag) {
+      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
+      // cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
 
-    // Double the buffer size and the number of buffers.
-    size_t bufferSize = 0, bufferValSize = sizeof(size_t);
-    CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivityGetAttribute");
-    bufferSize *= 2;
-    CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
-    CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT, &bufferValSize, &bufferSize), "cuptiActivityGetAttribute");
-    bufferSize *= 2;
-    CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
+      // Register functions for requesting buffer or processing buffer.
+      CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
+
+      // Double the buffer size and the number of buffers.
+      size_t bufferSize = 0, bufferValSize = sizeof(size_t);
+      CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivityGetAttribute");
+      bufferSize *= 2;
+      CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
+      CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT, &bufferValSize, &bufferSize), "cuptiActivityGetAttribute");
+      bufferSize *= 2;
+      CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
+
+      config_flag = false;
+    }
 
     LOG(INFO) << "The initialization of the asynchronous resource tracker is COMPLETED!";
   }
 
-  void AsyncResTracker::ProfilerStart(int device_id) {
+  void AsyncResTracker::ProfilerStart(int device_id, PROFTYPE prof_type) {
     // Initialze the device needed to be profiled.
     if (device_id < 0) {
       CHECK_CUDA_ERROR(cudaGetDevice(&device_id), "cudaGetDevice")
@@ -308,7 +329,7 @@ namespace caffe {
         uint64_t kernel_duration = 0;
         Timestamp_t timestamp;
 
-        kernel.name = kernel_record->name;
+        kernel.name = timestamp.name = kernel_record->name;
         kernel.gridX = kernel_record->gridX;
         kernel.gridY = kernel_record->gridY;
         kernel.gridZ = kernel_record->gridZ;
@@ -337,8 +358,6 @@ namespace caffe {
           kernels_vec_ptr_->at(pos).duration += kernel_duration;
           kernels_vec_ptr_->at(pos).average_exec_time = std::ceil(kernels_vec_ptr_->at(pos).duration /
               static_cast<double>(kernels_vec_ptr_->at(pos).invocations));
-          // kernels_vec_ptr_->at(pos).duration = ((kernels_vec_ptr_->at(pos).duration * (kernels_vec_ptr_.invocations - 1)) + kernel_duration) /
-          //   kernels_vec_ptr_->at(pos).invocations;
         }
 
         timestamp.start = kernel_record->start - static_startTimestamp_;
@@ -347,7 +366,6 @@ namespace caffe {
         if (static_kernel_counter_ < timestamp_vec_ptr_->size()) {
           timestamp_vec_ptr_->at(static_kernel_counter_) = timestamp;
         } else {
-          // LOG(INFO) << "START: " << timestamp.start << " --- END: " << timestamp.end;
           timestamp_vec_ptr_->push_back(timestamp);
         }
       }
@@ -391,10 +409,6 @@ namespace caffe {
 
     unsigned int kernels_per_iter = timestamp_vec_.size() / min_invocations;
     // To avoid additional kernel recorded.
-    for (auto kernel_rec : kernels_vec_) {
-      unsigned int temp_kernels_per_iter = timestamp_vec_.size() / kernel_rec.invocations;
-      kernels_per_iter = MIN(temp_kernels_per_iter, kernels_per_iter);
-    }
 
     uint64_t total_launch_overhead = 0;
     for (int i = 0; i < min_invocations; ++ i) {
@@ -538,7 +552,6 @@ namespace caffe {
                       - time_vec.begin();
       int end_pos = std::find(time_vec.begin(), time_vec.end(), timestamp_vec_.at(i).end)
                     - time_vec.begin();
-      // uint64_t temp_kernel_execTime = timestamp_vec_.at(i).end - timestamp_vec_.at(i).start;
 
       TreeInsert(seg_tree_, 0, start_pos, end_pos);
     }
@@ -549,13 +562,40 @@ namespace caffe {
     uint64_t idle_time = total_time - busy_time;
 
     double occupancy_ratio = static_cast<double>(busy_time) / static_cast<double>(total_time);
-    // LOG(INFO) << "Occupancy ratio of layer " << layer_name << " (#streams = " << parallel_degree << ") is " << occupancy_ratio << ".";
+    LOG(INFO) << "Occupancy ratio of layer " << layer_name << " (#streams = " << parallel_degree << ") is " << occupancy_ratio << ".";
     idle_time_stream_ << layer_name << "," << parallel_degree << "," << occupancy_ratio << "," << total_time << "," << idle_time << std::endl;
 
     // Free memory allocated.
     time_vec.clear();
 
     return ;
+  }
+
+  void AsyncResTracker::TimestampLog(const string filename) const {
+    fstream temp_timestamp_log(string("./LOG/" + filename + ".csv").c_str(), std::ios::out);
+    stringstream temp_ss;
+
+    if (!temp_timestamp_log.is_open()) {
+      LOG(INFO) << "Cannot OPEN timestamp log file: ./LOG/" << filename << ".csv!";
+    }
+
+    temp_timestamp_log << "# timestamp,stream_id,kernel_name" << std::endl;
+
+    const int step = 40;
+    for (int i = 0; i < this->timestamp_vec_.size(); i += step) {
+      temp_ss.str("");
+      temp_ss.clear();
+      for (int j = 0; j < step and (j + i) < this->timestamp_vec_.size(); ++ j) {
+        Timestamp_t *temp_timestamp = &timestamp_vec_[i + j];
+        temp_ss << temp_timestamp->start << "," << temp_timestamp->streamId << ","
+          << temp_timestamp->name << "\n";
+        temp_ss << temp_timestamp->end << "," << temp_timestamp->streamId << ","
+          << temp_timestamp->name << "\n\n\n";
+      }
+
+      temp_timestamp_log << temp_ss.str();
+      temp_timestamp_log.flush();
+    }
   }
 } /** namespace caffe **/
 

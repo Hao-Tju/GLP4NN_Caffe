@@ -29,7 +29,7 @@
  */
 #define CHECK_CUDA_ERROR(err, functionName) {                   \
   if (err != cudaSuccess) {                                     \
-    std::cout << __FILE__ << ":" << __LINE__ << ": error " <<   \
+    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": error " <<   \
       err << " for CUDA Runtime API function '" << functionName \
       << "': " << cudaGetErrorString(err) << std::endl;         \
     exit (EXIT_FAILURE);                                        \
@@ -44,7 +44,7 @@
   if (err != CUPTI_SUCCESS) {                                           \
     const char* errstr;                                                 \
     cuptiGetResultString(err, &errstr);                                 \
-    std::cout << __FILE__ << ":" << __LINE__ << ": Error " << errstr << \
+    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": Error " << errstr << \
       " for CUPTI API function '" << cuptifunc << "'." << std::endl;    \
     exit(EXIT_FAILURE);                                                 \
   }                                                                     \
@@ -58,7 +58,7 @@
   if (err != CUDA_SUCCESS) {                                    \
     const char* errstr;                                         \
     cuGetErrorString(err, &errstr);                             \
-    std::cout << __FILE__ << ":" << __LINE__ << ": error " <<   \
+    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": error " <<   \
       err << " for CUDA Driver API function '" << functionName  \
       << "': " << errstr << std::endl;                          \
     exit (EXIT_FAILURE);                                        \
@@ -84,6 +84,7 @@ private:                                                        \
 #define ALIGN_BUFFER(buffer, align_size)                        \
   ((reinterpret_cast<uintptr_t>(buffer) & (align_size - 1)) ? (buffer + align_size - (reinterpret_cast<uintptr_t>(buffer) & (align_size - 1))) : buffer)
 
+// Standard built-in class used in AsyncResTracker.
 using std::string;
 using std::vector;
 using std::map;
@@ -91,6 +92,8 @@ using std::fstream;
 using std::stringstream;
 
 namespace caffe {
+  enum PROFTYPE {DEFAUT = 0, SERIAL = 1, CONCURRENT = 2};
+
   /**
    * @brief AsyncResTracker class.
    *
@@ -113,7 +116,7 @@ namespace caffe {
       /**
        * @brief   Initialize CUPTI settings of a class object.
        */
-      static void InitAsyncResTracker();
+      static void InitAsyncResTracker(PROFTYPE prof_type = SERIAL);
 
       /**
        * @brief   ProfilerLock function.
@@ -243,6 +246,15 @@ namespace caffe {
        * @param[in] parallel_degree The current parallel_degree configuration.
        */
       void ComputeOccupancyRatio(const string layer_name, const unsigned int parallel_degree);
+      /**
+       * @brief   Record the kernel timestamp.
+       *
+       * This method is used to write kernel timestamps recorded for further analysis.
+       *
+       * @param[in] filename        Name of the log file.
+       * @param[in] timestamp_ptr   Kernel timestamp vector.
+       */
+      void TimestampLog(const string filename) const;
 
     protected:
       // Boost mutex used to lock the profiler.

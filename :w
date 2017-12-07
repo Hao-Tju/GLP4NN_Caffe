@@ -133,8 +133,6 @@ namespace caffe {
 
       temp_ss.str("");
       temp_ss.clear();
-      // Record kernels that needed to be analyzed.
-      RecordKernelsAnalyzed(kernels);
     }
     sync<<<1,1>>>();
 
@@ -165,10 +163,8 @@ namespace caffe {
           ",grid=[" << kernels[i + j].gridX << ":" << kernels[i + j].gridY << ":" << kernels[i + j].gridZ <<
           "],block=[" << kernels[i + j].blockX << ":" << kernels[i + j].blockY << ":" << kernels[i + j].blockZ <<
           "],sm=" << kernels[i + j].smPerBlock << ",regs=" << kernels[i + j].regPerThread << ",invoc=" << kernels[i + j].invocations <<
-          ",avg_exec_time=" << kernels[i + j].average_exec_time << "\n";
+          ",avg_exec_time=" << kernels[i + j].average_exec_time;
       }
-
-      InfoLog::Get().RecordInfoLog(current_key_str_, "Kernel_Info", temp_ss.str());
     }
   }
 
@@ -179,7 +175,6 @@ namespace caffe {
     glp_prob *dop_mip = glp_create_prob();
     glp_set_prob_name(dop_mip, "DegreeOfParallelismSolver");
     glp_set_obj_dir(dop_mip, GLP_MAX);
-    glp_term_out(GLP_OFF);
 
     if (kernels == NULL || kernels->size() == 0) {
       LOG(FATAL) << "There is no kernels recorded!";

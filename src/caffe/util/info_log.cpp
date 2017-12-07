@@ -67,6 +67,7 @@ namespace caffe {
     }
 
     LOG(INFO) << "LOGGING: " << label_str << "," << this->device_id_ << "," << log_val << std::endl;
+    log_stream_.clear();
     log_stream_ << label_str << "," << this->device_id_ << "," << log_val << std::endl;
 
     log_stream_.close();
