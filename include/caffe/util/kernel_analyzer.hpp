@@ -100,8 +100,23 @@ namespace caffe {
        * @return Degree of parallelism of the current kernel block.
        */
       int ParallelDegree(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
+      /**
+       * @brief ParallelDegree analysis method with SIMPLEX method.
+       */
+      int ParallelDegreeLP(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
 
+      /**
+       * @brief Degree of parallelism recorder.
+       *
+       * Method used to record the degree of parallelism of each execution unit.
+       */
       void RecordParallelDegree();
+      /**
+       * @brief Kernels analyzed recorder.
+       *
+       * Method used to record the kernels that is adopted to do analysis.
+       */
+      void RecordKernelsAnalyzed(const vector<Kernel_t>* kernels) const;
 
       /**
        * @brief  Device setting function.

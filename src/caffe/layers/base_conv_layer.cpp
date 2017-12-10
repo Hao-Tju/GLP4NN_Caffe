@@ -398,7 +398,6 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     const Dtype* weights, Dtype* output, char opt, int parallel_degree, bool skip_im2col) {
-  LOG(INFO) << "Parallel Degree = " << parallel_degree << ", is_1x1_ = " << is_1x1_ << ", skip_im2col" << skip_im2col;
   const Dtype* col_buff = input;
   if (!is_1x1_) {
     if (!skip_im2col) {
