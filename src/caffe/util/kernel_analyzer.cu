@@ -119,25 +119,26 @@ namespace caffe {
       const uint64_t kernel_launch_overhead = AsyncResTracker::Get().GetKernelLaunchOverhead();
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
-      LOG(INFO) << "MIP: " << ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
-      LOG(INFO) << "SIMPLEX: " << ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
+      //LOG(INFO) << "MIP: " << ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
+      //LOG(INFO) << "SIMPLEX: " << ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
       //pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
       pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
       // Record kernels that needed to be analyzed.
-      RecordKernelsAnalyzed(kernels);
 
       LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
       AsyncResTracker::Get().ProfilerUnlock();
 
-      LOG(INFO) << "Asynchronous resource tracker stop!";
-
       double analyzer_overhead = analyzer_timer.MicroSeconds();
+      // Record kernels recorded.
+      RecordKernelsAnalyzed(kernels);
       temp_ss << current_key_str_ << "," << analyzer_overhead << "us";
       InfoLog::Get().RecordInfoLog("analyzer_overhead", GetCurrentTime() + "-ANALYZER", temp_ss.str());
 
       temp_ss.str("");
       temp_ss.clear();
+
+      LOG(INFO) << "Asynchronous resource tracker stop!";
     }
     sync<<<1,1>>>();
 
