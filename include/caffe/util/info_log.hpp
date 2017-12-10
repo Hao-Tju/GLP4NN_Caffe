@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include <cstdint>
+#include <cstdio>
 
 namespace caffe {
 
@@ -44,6 +45,7 @@ class InfoLog
     string base_log_folder_;
 
     std::fstream log_stream_;
+    std::FILE *log_file_;
 
   private:
     /**
