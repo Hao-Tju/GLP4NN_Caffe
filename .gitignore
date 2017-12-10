@@ -57,6 +57,9 @@
 
 # User's build configuration
 Makefile.config
+Makefile
+Makefile.config.serial
+Makefile.config.prof
 
 # Data and models are either
 # 1. reference, and not casually committed
