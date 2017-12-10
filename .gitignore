@@ -57,9 +57,6 @@
 
 # User's build configuration
 Makefile.config
-Makefile
-Makefile.config.serial
-Makefile.config.prof
 
 # Data and models are either
 # 1. reference, and not casually committed
@@ -116,4 +113,10 @@ examples/mnist/mnist_train_lmdb/lock.mdb
 
 # nohup setting
 nohup.out
-experiment.log
+*.log
+
+# Makefile
+Makefile
+Makefile.config
+Makefile.config.serial
+Makefile.config.prof

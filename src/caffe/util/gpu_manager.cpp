@@ -34,10 +34,10 @@ namespace caffe {
       pool_size = GetCUDASettings(this->device_id_);
     }
 
-    LOG(INFO) << "Pool size: " << handle_num_ << " ---> " << pool_size;
     if (this->handle_num_ >= pool_size) {
       return ;
     } else {
+      LOG(INFO) << "Pool size: " << handle_num_ << " ---> " << pool_size;
       cudaStream_t* temp_streams = NULL;
       cublasHandle_t* temp_cublas_handler = NULL;
 #ifdef USE_CUDNN

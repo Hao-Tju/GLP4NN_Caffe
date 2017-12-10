@@ -279,9 +279,6 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
 
   // Added by Hao Fu.
   // Initialize the resource tracker.
-// #ifdef USE_PROF
-//   AsyncResTracker::InitAsyncResTracker();
-// #endif
 
   LOG_IF(INFO, Caffe::root_solver()) << "Network initialization done.";
 }
@@ -591,8 +588,7 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
     iterations ++;
   }
 
-  if (Caffe::root_solver() and this->phase() == caffe::TRAIN and
-      iterations > 100 and iterations % 100 == 0) {
+  if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations % 100 == 0) {
     stringstream temp_ss;
     for (int i = 0; i < layers_.size(); ++ i) {
       const caffe::string& layername = layers_[i]->layer_param().name();

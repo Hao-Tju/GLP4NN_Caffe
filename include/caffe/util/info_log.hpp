@@ -7,6 +7,7 @@
 #include <sstream>
 #include <fstream>
 
+#include <cstdio>
 #include <cstdint>
 #include <cstdio>
 
@@ -45,7 +46,7 @@ class InfoLog
     string base_log_folder_;
 
     std::fstream log_stream_;
-    std::FILE *log_file_;
+    FILE *log_file_handle_;
 
   private:
     /**
