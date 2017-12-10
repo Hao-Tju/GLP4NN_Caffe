@@ -26,9 +26,10 @@ namespace caffe {
   }
 
   InfoLog::~InfoLog() {
+    /*
     if (log_stream_.is_open()) {
       log_stream_.close();
-    }
+    }*/
     if (log_file_handle_ != NULL) {
       fclose(log_file_handle_);
       log_file_handle_ = NULL;
@@ -46,7 +47,7 @@ namespace caffe {
     this->device_id_ = device_id;
   }
 
-  void InfoLog::SetFolder(string net_folder) { 
+  void InfoLog::SetFolder(string net_folder) {
     if (this->base_log_folder_.find(net_folder) != string::npos) {
       return ;
     }
@@ -62,6 +63,7 @@ namespace caffe {
   }
 
   void InfoLog::RecordInfoLog(string label_str, string log_type, string log_val) {
+    /*
     if (this->log_stream_.is_open()) {
       this->log_stream_.close();
     }
@@ -76,7 +78,7 @@ namespace caffe {
     log_stream_ << label_str << "," << this->device_id_ << "," << log_val << std::endl;
 
     log_stream_.close();
-    /*
+    */
     if (this->log_file_handle_ != NULL) {
       fclose(this->log_file_handle_);
       this->log_file_handle_ = NULL;
@@ -95,9 +97,9 @@ namespace caffe {
       fprintf(log_file_handle_, "%s,%i,%s\n", label_str.c_str(), this->device_id_, log_val.c_str());
     }
     fflush(log_file_handle_);
+
     fclose(log_file_handle_);
     log_file_handle_= NULL;
-    */
   }
 }   /** namespace caffe **/
 

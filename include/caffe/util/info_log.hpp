@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cstdio>
 
 namespace caffe {
 
