@@ -122,7 +122,7 @@ namespace caffe {
 
       //LOG(INFO) << "MIP: " << ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
       //LOG(INFO) << "SIMPLEX: " << ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
-      pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
+      pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
       //pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
 
       LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
