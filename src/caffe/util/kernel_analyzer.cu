@@ -10,6 +10,7 @@
 #include "caffe/util/info_log.hpp"
 
 #define MIN(a, b) ((std::ceil(a) < std::ceil(b)) ? std::ceil(a) : std::ceil(b))
+#define MAX(a, b) ((a < b) ? b : a)
 
 #define CHECK_GLP_ERROR(val, func) {                                                                      \
   if (val == GLP_EBOUND) {                                                                                \
@@ -135,6 +136,7 @@ namespace caffe {
       AsyncResTracker::Get().TimestampLog(current_key_str_);
       // Release temporary buffer.
       AsyncResTracker::Get().TempBufRelease();
+
       temp_ss << current_key_str_ << "," << analyzer_overhead << "us";
       InfoLog::Get().RecordInfoLog("analyzer_overhead", GetCurrentTime() + "-ANALYZER", temp_ss.str());
 
@@ -203,8 +205,12 @@ namespace caffe {
     // sm_bnd: The maximum number of kernels that can be launched concurrently subject to the shared memory.
     // threads_bnd: The maximum number of kernels that can be launched concurrently subject to the maxThreadsPerMultiProcessor.
     // k_num_bnd: The final upper bounds of the number of concurrent kernels.
+    // Allocate k_num_bnd_ storage.
+    if (this->k_num_bnd_ == NULL) {
+      this->k_num_bnd_ = new int[kernels->size()];
+    }
     unsigned int launch_bnd = 0, sm_bnd = 0, threads_bnd = 0;
-    double k_num_bnd = 0.0;
+    //double k_num_bnd = 0.0;
     double coef_k = 0.0, constant_term = 0.0;
     double blocks_k = 0.0, threads_k = 0.0;
     double total_sm = gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount;
@@ -215,34 +221,34 @@ namespace caffe {
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
 
-      launch_bnd = (kernels->at(i).average_exec_time + t_launch - 1) / t_launch;
+      launch_bnd = ceil(kernels->at(i).average_exec_time / static_cast<double>(t_launch));
       LOG(INFO) << "Average exec time: " << kernels->at(i).average_exec_time << ", launch_bnd: " << launch_bnd;
 
       if (kernels->at(i).smPerBlock != 0) {
         unsigned int sm_coef = (((kernels->at(i).smPerBlock * blocks_k) > total_sm) ? (kernels->at(i).smPerBlock * blocks_k - total_sm) : (kernels->at(i).smPerBlock * blocks_k));
-        sm_bnd = total_sm / sm_coef;
+        sm_bnd = static_cast<double>(total_sm) / sm_coef;
         LOG(INFO) << "total_sm: (" << gpu_prop.sharedMemPerMultiprocessor << " * " << gpu_prop.multiProcessorCount << ")" << total_sm << ", sm_coef: " << sm_coef << ", sm_bnd: " << sm_bnd;
-        k_num_bnd = MIN(launch_bnd, static_cast<int>(sm_bnd));
+        this->k_num_bnd_[i] = MIN(launch_bnd, static_cast<int>(sm_bnd));
       } else {
-        k_num_bnd = launch_bnd;
+        this->k_num_bnd_[i] = launch_bnd;
       }
 
       unsigned int thread_coef = (((threads_k * blocks_k) > total_threads) ? (threads_k * blocks_k - total_threads) : (threads_k * blocks_k));
-      threads_bnd = total_threads / thread_coef;
-      k_num_bnd = MIN(k_num_bnd, static_cast<int>(threads_bnd));
+      threads_bnd = ceil(static_cast<double>(total_threads) / thread_coef);
+      this->k_num_bnd_[i] = MIN(this->k_num_bnd_[i], static_cast<int>(threads_bnd));
       LOG(INFO) << "total_threads: " << total_threads << ",thread_coef: " << thread_coef << ", threads_bnd: " << threads_bnd;
 
       coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
       constant_term += static_cast<double>(threads_k * (gpu_prop.multiProcessorCount - 1)) / gpu_prop.multiProcessorCount;
 
-      LOG(INFO) << kernels->at(i).name << " ---> " << "theads_k: " << threads_k << ", blcoks_k: " << blocks_k << ", k_num_bnd: " << k_num_bnd;
+      LOG(INFO) << kernels->at(i).name << " ---> " << "theads_k: " << threads_k << ", blcoks_k: " << blocks_k << ", k_num_bnd: " << this->k_num_bnd_[i];
 
       if (std::ceil(blocks_k / gpu_prop.multiProcessorCount) * threads_k > gpu_prop.maxThreadsPerMultiProcessor) {
-        k_num_bnd = 1;
+        this->k_num_bnd_[i] = 1;
       }
 
       glp_set_col_name(dop_mip, i + 1, kernels->at(i).name.c_str());
-      glp_set_col_bnds(dop_mip, i + 1, GLP_DB, 0.0, k_num_bnd);
+      glp_set_col_bnds(dop_mip, i + 1, GLP_DB, 0.0, this->k_num_bnd_[i]);
       glp_set_col_kind(dop_mip, i + 1, GLP_IV);
       glp_set_obj_coef(dop_mip, i + 1, coef_k);
     }
@@ -328,9 +334,14 @@ namespace caffe {
     delete[] col_idx;
     delete[] coef_k_arr;
 
+    int max_dop = 0;
+    for (int i = 0; i < kernels->size(); ++ i) {
+      max_dop = MAX(max_dop, this->k_num_bnd_[i]);
+    }
+    LOG(INFO) << "max_degree_of_parallelism: " << max_degree_of_parallelism << ", max_dop: " << max_dop;
     if (max_degree_of_parallelism == 0) {
       LOG(INFO) << "CANNOT LAUNCH KERNELS CONCURRENTLY!";
-      max_degree_of_parallelism = 1;
+      max_degree_of_parallelism = max_dop;
     }
 
     return max_degree_of_parallelism;
@@ -354,8 +365,12 @@ namespace caffe {
       LOG(INFO) << "ERROR! There is no kernel recorded!";
     }
 
+    // Allocate k_num_bnd_ storage.
+    if (this->k_num_bnd_ == NULL) {
+      this->k_num_bnd_ = new int[kernels->size()];
+    }
     unsigned int launch_bnd = 0, sm_bnd = 0, threads_bnd = 0;
-    double k_num_bnd = 0.0;
+    //double k_num_bnd = 0.0;
     double coef_k = 0.0;
     double blocks_k = 0.0, threads_k = 0.0;
     double total_sm = gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount;
@@ -365,7 +380,7 @@ namespace caffe {
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
 
-      launch_bnd = (kernels->at(i).average_exec_time + t_launch - 1) / t_launch;
+      launch_bnd = ceil(kernels->at(i).average_exec_time / static_cast<double>(t_launch));
       LOG(INFO) << "Average exec time: " << kernels->at(i).average_exec_time << ", launch_bnd: " << launch_bnd;
 
       if (kernels->at(i).smPerBlock != 0) {
@@ -373,21 +388,21 @@ namespace caffe {
         sm_bnd = total_sm / sm_coef;
         LOG(INFO) << "total_sm: " << gpu_prop.sharedMemPerMultiprocessor << " * " << gpu_prop.multiProcessorCount
           << ")" << total_sm << ", sm_coef: " << sm_coef << ", sm_bnd: " << sm_bnd;
-        k_num_bnd = MIN(launch_bnd, static_cast<int>(ceil(sm_bnd)));
+        this->k_num_bnd_[i] = MIN(launch_bnd, static_cast<int>(sm_bnd));
       } else {
-        k_num_bnd = launch_bnd;
+        this->k_num_bnd_[i] = launch_bnd;
       }
 
       double thread_coef = ((threads_k * blocks_k) > total_threads) ? (threads_k * blocks_k - total_threads) : (threads_k * blocks_k);
-      threads_bnd = total_threads / thread_coef;
-      k_num_bnd = MIN(k_num_bnd, static_cast<int>(ceil(threads_bnd)));
+      threads_bnd = ceil(total_threads / static_cast<double>(thread_coef));
+      this->k_num_bnd_[i] = MIN(this->k_num_bnd_[i], static_cast<int>(ceil(threads_bnd)));
       LOG(INFO) << "total_threads: " << total_threads << ", thread_coef: " << thread_coef << ", threads_bnd: " << threads_bnd;
 
       coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
-      LOG(INFO) << kernels->at(i).name << " ----> threads_k: " << threads_k << ", blocks_k: " << blocks_k << ", k_num_bnd: " << k_num_bnd;
+      LOG(INFO) << kernels->at(i).name << " ----> threads_k: " << threads_k << ", blocks_k: " << blocks_k << ", k_num_bnd: " << this->k_num_bnd_[i];
 
       glp_set_col_name(dop_lp, i + 1, kernels->at(i).name.c_str());
-      glp_set_col_bnds(dop_lp, i + 1, GLP_DB, 0.0, k_num_bnd);
+      glp_set_col_bnds(dop_lp, i + 1, GLP_DB, 0.0, this->k_num_bnd_[i]);
       glp_set_col_kind(dop_lp, i + 1, GLP_IV); // Used to check low-bound SM.
       glp_set_obj_coef(dop_lp, i + 1, coef_k);
     }
@@ -444,7 +459,7 @@ namespace caffe {
     for (int i = 0; i < total_kernel_kinds; ++ i) {
       //obj_k_val[i] = glp_get_col_prim(dop_lp, i + 1);
       obj_k_val[i] = glp_mip_col_val(dop_lp, i + 1);
-      max_degree_of_parallelism += obj_k_val[i];
+      max_degree_of_parallelism += ceil(obj_k_val[i]);
       temp_ss << "[ " << kernels->at(i).name << " = " << obj_k_val[i];
       if (i != (total_kernel_kinds - 1)) {
         temp_ss << ", ";
@@ -462,12 +477,17 @@ namespace caffe {
     delete[] col_idx;
     delete[] coef_k_arr;
 
+    int max_dop = 0;
+    for (int i = 0; i < kernels->size(); ++ i) {
+      max_dop = MAX(total_dop, this->k_num_bnd_[i]);
+    }
+    LOG(INFO) << "max_degree_of_parallelism: " << max_degree_of_parallelism << ", max_dop: " << max_dop;
     if (max_degree_of_parallelism <= 1.0) {
       LOG(INFO) << "CANNOT LAUNCH KERNELS CONCURRENTLY!";
-      max_degree_of_parallelism = 1;
+      max_degree_of_parallelism = max_dop;
     }
 
-    return ceil(max_degree_of_parallelism);
+    return max_degree_of_parallelism;
   }
 
   void KernelAnalyzer::SetDevice(int device_id) {

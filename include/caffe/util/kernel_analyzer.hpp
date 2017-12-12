@@ -134,6 +134,7 @@ namespace caffe {
       map<string, int> pdegree_map_;
 
       int device_id_; /**< ID of the GPU device that kernels run on. */
+      int *k_num_bnd_;
 
     private:
       // The private constructor to avoid duplicate instantiation.
