@@ -121,17 +121,20 @@ namespace caffe {
 
       //LOG(INFO) << "MIP: " << ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
       //LOG(INFO) << "SIMPLEX: " << ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
-      //pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
-      pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
-      // Record kernels that needed to be analyzed.
+      pdegree_map_[current_key_str_] = ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
+      //pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
 
       LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
       AsyncResTracker::Get().ProfilerUnlock();
 
       double analyzer_overhead = analyzer_timer.MicroSeconds();
-      // Record kernels recorded.
+      // Record kernels that needed to be analyzed.
       RecordKernelsAnalyzed(kernels);
+      // Record kernel timestamps.
+      AsyncResTracker::Get().TimestampLog(current_key_str_);
+      // Release temporary buffer.
+      AsyncResTracker::Get().TempBufRelease();
       temp_ss << current_key_str_ << "," << analyzer_overhead << "us";
       InfoLog::Get().RecordInfoLog("analyzer_overhead", GetCurrentTime() + "-ANALYZER", temp_ss.str());
 
@@ -385,6 +388,7 @@ namespace caffe {
 
       glp_set_col_name(dop_lp, i + 1, kernels->at(i).name.c_str());
       glp_set_col_bnds(dop_lp, i + 1, GLP_DB, 0.0, k_num_bnd);
+      glp_set_col_kind(dop_lp, i + 1, GLP_IV); // Used to check low-bound SM.
       glp_set_obj_coef(dop_lp, i + 1, coef_k);
     }
 
@@ -425,15 +429,21 @@ namespace caffe {
 
     glp_load_matrix(dop_lp, total_kernel_kinds * total_constraints, row_idx, col_idx, coef_k_arr);
 
-    glp_simplex(dop_lp, NULL);
+    //glp_simplex(dop_lp, NULL);
+    glp_iocp dop_param;
+    glp_init_iocp(&dop_param);
+    dop_param.presolve = GLP_ON;
+    CHECK_GLP_ERROR(glp_intopt(dop_lp, &dop_param), "glp_intopt");
 
     stringstream temp_ss;
     double max_degree_of_parallelism = 0;
-    double obj_val = glp_get_obj_val(dop_lp);
+    //double obj_val = glp_get_obj_val(dop_lp);
+    double obj_val = glp_mip_obj_val(dop_lp);
     LOG(INFO) << "OBJECTIVE value: " << obj_val;
     double *obj_k_val =new double[total_kernel_kinds];
     for (int i = 0; i < total_kernel_kinds; ++ i) {
-      obj_k_val[i] = glp_get_col_prim(dop_lp, i + 1);
+      //obj_k_val[i] = glp_get_col_prim(dop_lp, i + 1);
+      obj_k_val[i] = glp_mip_col_val(dop_lp, i + 1);
       max_degree_of_parallelism += obj_k_val[i];
       temp_ss << "[ " << kernels->at(i).name << " = " << obj_k_val[i];
       if (i != (total_kernel_kinds - 1)) {
