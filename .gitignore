@@ -108,8 +108,7 @@ LOG
 NVPROF
 
 # lock.mdb
-examples/mnist/mnist_test_lmdb/lock.mdb
-examples/mnist/mnist_train_lmdb/lock.mdb
+*.mdb
 
 # nohup setting
 nohup.out
