@@ -132,7 +132,6 @@ namespace caffe {
        * Function used to unlock a profiler.
        */
       void ProfilerUnlock() {
-        this->kernels_vec_.clear();
         this->profiler_mutex_.unlock();
       }
 
@@ -255,7 +254,12 @@ namespace caffe {
        * @param[in] timestamp_ptr   Kernel timestamp vector.
        */
       void TimestampLog(const string filename) const;
-      void Clear();
+      /**
+       * @brief   Temp buffer release method.
+       *
+       * Method used to release temporary buffer allocated while analyzing kernels recorded.
+       */
+      void TempBufRelease();
 
     protected:
       // Boost mutex used to lock the profiler.

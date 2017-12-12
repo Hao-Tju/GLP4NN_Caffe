@@ -90,10 +90,10 @@ namespace caffe {
     }
 
     if (!label_str.empty()) {
-      LOG(INFO) << "LOGGING: " << this->device_id_ << "," << log_val;
+      //LOG(INFO) << "LOGGING: " << this->device_id_ << "," << log_val;
       fprintf(log_file_handle_, "%s\n", log_val.c_str());
     } else {
-      LOG(INFO) << "LOGGING: " << label_str << "," << this->device_id_ << "," << log_val;
+      //LOG(INFO) << "LOGGING: " << label_str << "," << this->device_id_ << "," << log_val;
       fprintf(log_file_handle_, "%s,%i,%s\n", label_str.c_str(), this->device_id_, log_val.c_str());
     }
     fflush(log_file_handle_);

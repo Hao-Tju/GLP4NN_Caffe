@@ -578,14 +578,16 @@ namespace caffe {
   }
 
   void AsyncResTracker::TimestampLog(const string filename) const {
-    fstream temp_timestamp_log(string("./LOG/" + filename + ".csv").c_str(), std::ios::out);
+    //fstream temp_timestamp_log(filename.c_str(), std::ios::out | std::ios::app);
     stringstream temp_ss;
 
+    /*
     if (!temp_timestamp_log.is_open()) {
       LOG(INFO) << "Cannot OPEN timestamp log file: ./LOG/" << filename << ".csv!";
     }
 
     temp_timestamp_log << "# timestamp,stream_id,kernel_name" << std::endl;
+    */
 
     const int step = 40;
     for (int i = 0; i < this->timestamp_vec_.size(); i += step) {
@@ -599,13 +601,40 @@ namespace caffe {
           << temp_timestamp->name << "\n\n\n";
       }
 
+      /*
+      switch(temp_timestamp_log.rdstate()) {
+        case std::ios_base::badbit:
+          LOG(INFO) << "FSTREAM ERROR! Irrecoverable stream error!";
+          break;
+        case std::ios_base::failbit:
+          LOG(INFO) << "FSTREAM ERROR! Input/output operation failed!";
+          break;
+        case std::ios_base::eofbit:
+          LOG(INFO) << "FSTREAM ERROR! Associated input sequence has reached end-of-file!";
+          break;
+        default:
+          break;
+      }
+
+      temp_timestamp_log.clear();
       temp_timestamp_log << temp_ss.str();
       temp_timestamp_log.flush();
+      */
+      InfoLog::Get().RecordInfoLog("", filename + "_timestamp", temp_ss.str());
     }
   }
 
-  // TODO: Clear all temporary buffer.
-  void AsyncResTracker::Clear() {
+  void AsyncResTracker::TempBufRelease() {
+    if (!this->kernels_vec_.empty()) {
+      this->kernels_vec_.clear();
+    }
+    if (!this->timestamp_vec_.empty()) {
+      this->timestamp_vec_.clear();
+    }
+    if (seg_tree_ != NULL) {
+      delete[] seg_tree_;
+      seg_tree_ = NULL;
+    }
   }
 } /** namespace caffe **/
 
