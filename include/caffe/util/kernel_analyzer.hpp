@@ -91,7 +91,8 @@ namespace caffe {
        * @brief ParallelDegree analyzer AND getter.
        *
        * Method used to analyze recorded kernels and return the degree of parallelism of current
-       * kernel block.
+       * kernel block. The method is based on upper bound of thread blocks on a single
+       * multiprocessor.
        *
        * @param[in] t_launch          Time needed to launch a single CUDA kernel.
        * @param[in] kernels           Vector used to store execution configuration of
@@ -99,11 +100,8 @@ namespace caffe {
        *
        * @return Degree of parallelism of the current kernel block.
        */
-      int ParallelDegree(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
-      /**
-       * @brief ParallelDegree analysis method with SIMPLEX method.
-       */
-      int ParallelDegreeLP(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
+      int ParallelDegreeUB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
+      int ParallelDegreeLB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
 
       /**
        * @brief Degree of parallelism recorder.

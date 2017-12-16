@@ -11,6 +11,7 @@
 
 #define MIN(a, b) ((std::ceil(a) < std::ceil(b)) ? std::ceil(a) : std::ceil(b))
 #define MAX(a, b) ((a < b) ? b : a)
+#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
 #define CHECK_GLP_ERROR(val, func) {                                                                      \
   if (val == GLP_EBOUND) {                                                                                \
@@ -120,10 +121,8 @@ namespace caffe {
       const uint64_t kernel_launch_overhead = AsyncResTracker::Get().GetKernelLaunchOverhead();
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
-      //LOG(INFO) << "MIP: " << ParallelDegree(kernel_launch_overhead, kernels, this->device_id_);
-      //LOG(INFO) << "SIMPLEX: " << ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
-      pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
-      //pdegree_map_[current_key_str_] = ParallelDegreeLP(kernel_launch_overhead, kernels, this->device_id_);
+      pdegree_map_[current_key_str_] = ParallelDegreeLB(kernel_launch_overhead, kernels, this->device_id_);
+      //pdegree_map_[current_key_str_] = ParallelDegreeUB(kernel_launch_overhead, kernels, this->device_id_);
 
       LOG(INFO) << current_key_str_ << ": " << pdegree_map_[current_key_str_];
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
@@ -182,7 +181,7 @@ namespace caffe {
     }
   }
 
-  int KernelAnalyzer::ParallelDegree(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id) {
+  int KernelAnalyzer::ParallelDegreeUB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id) {
     cudaDeviceProp gpu_prop;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&gpu_prop, this->device_id_), "cudaGetDeviceProperties");
 
@@ -191,11 +190,12 @@ namespace caffe {
     glp_set_obj_dir(dop_mip, GLP_MAX);
     glp_term_out(GLP_OFF);
 
-    if (kernels == NULL || kernels->size() == 0) {
-      LOG(FATAL) << "There is no kernels recorded!";
+    int total_kernel_kinds = kernels->size();
+    if (kernels == NULL || total_kernel_kinds == 0) {
+      LOG(FATAL) << "There is no kernels recorded! Please CHECK CUPTI settings.";
     }
 
-    glp_add_cols(dop_mip, kernels->size());
+    glp_add_cols(dop_mip, total_kernel_kinds);
     if (glp_get_num_cols(dop_mip) == 0 ) {
       LOG(INFO) << "ERROR! There is no kernel recorded.";
     }
@@ -206,8 +206,12 @@ namespace caffe {
     // threads_bnd: The maximum number of kernels that can be launched concurrently subject to the maxThreadsPerMultiProcessor.
     // k_num_bnd: The final upper bounds of the number of concurrent kernels.
     // Allocate k_num_bnd_ storage.
+    if (this->k_num_bnd_ != NULL and ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
+      delete[] this->k_num_bnd_;
+      this->k_num_bnd_ = new int[total_kernel_kinds];
+    }
     if (this->k_num_bnd_ == NULL) {
-      this->k_num_bnd_ = new int[kernels->size()];
+      this->k_num_bnd_ = new int[total_kernel_kinds];
     }
     unsigned int launch_bnd = 0, sm_bnd = 0, threads_bnd = 0;
     //double k_num_bnd = 0.0;
@@ -216,7 +220,7 @@ namespace caffe {
     double total_sm = gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount;
     double total_threads = gpu_prop.maxThreadsPerMultiProcessor * gpu_prop.multiProcessorCount;
     //LOG(INFO) << "t_launch = " << t_launch;
-    for (int i = 0; i < kernels->size(); ++ i) {
+    for (int i = 0; i < total_kernel_kinds; ++ i) {
       launch_bnd = sm_bnd = threads_bnd = 0.0;
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
@@ -270,7 +274,6 @@ namespace caffe {
     double sm_bias = 0.0, threads_bias = 0.0;
     double coef_bias = static_cast<double>(gpu_prop.multiProcessorCount - 1) / static_cast<double>(gpu_prop.multiProcessorCount);
     double coef_sm = 0.0, coef_threads = 0.0;
-    int total_kernel_kinds = kernels->size();
     int *row_idx = new int[1 + total_constraints * total_kernel_kinds],
         *col_idx = new int[1 + total_constraints * total_kernel_kinds];
     double *coef_k_arr = new double[1 + total_constraints * total_kernel_kinds];
@@ -335,7 +338,7 @@ namespace caffe {
     delete[] coef_k_arr;
 
     int max_dop = 0;
-    for (int i = 0; i < kernels->size(); ++ i) {
+    for (int i = 0; i < total_kernel_kinds; ++ i) {
       max_dop = MAX(max_dop, this->k_num_bnd_[i]);
     }
     LOG(INFO) << "max_degree_of_parallelism: " << max_degree_of_parallelism << ", max_dop: " << max_dop;
@@ -347,35 +350,40 @@ namespace caffe {
     return max_degree_of_parallelism;
   }
 
-  int KernelAnalyzer::ParallelDegreeLP(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id) {
+  int KernelAnalyzer::ParallelDegreeLB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id) {
     cudaDeviceProp gpu_prop;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&gpu_prop, this->device_id_), "cudaGetDeviceProperties");
 
-    glp_prob *dop_lp = glp_create_prob();
-    glp_set_prob_name(dop_lp, "ParallelismDegreeSolver");
-    glp_set_obj_dir(dop_lp, GLP_MAX);
+    glp_prob *dop = glp_create_prob();
+    glp_set_prob_name(dop, "ParallelismDegreeSolver");
+    glp_set_obj_dir(dop, GLP_MAX);
     glp_term_out(GLP_OFF);
 
-    if (kernels == NULL or kernels->size() == 0) {
+    int total_kernel_kinds = kernels->size();
+    if (kernels == NULL || total_kernel_kinds == 0) {
       LOG(FATAL) << "There is no kernels recorded! Please CHECK CUPTI settings.";
     }
 
-    glp_add_cols(dop_lp, kernels->size());
-    if (glp_get_num_cols(dop_lp) == 0) {
+    glp_add_cols(dop, total_kernel_kinds);
+    if (glp_get_num_cols(dop) == 0) {
       LOG(INFO) << "ERROR! There is no kernel recorded!";
     }
 
     // Allocate k_num_bnd_ storage.
-    if (this->k_num_bnd_ == NULL) {
-      this->k_num_bnd_ = new int[kernels->size()];
+    if (this->k_num_bnd_ != NULL and ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
+      delete[] this->k_num_bnd_;
+      this->k_num_bnd_ = new int[total_kernel_kinds];
     }
+    if (this->k_num_bnd_ == NULL) {
+      this->k_num_bnd_ = new int[total_kernel_kinds];
+    }
+    std::cout << "Allocating k_num_bnd_ ..." << std::endl;
     unsigned int launch_bnd = 0, sm_bnd = 0, threads_bnd = 0;
-    //double k_num_bnd = 0.0;
     double coef_k = 0.0;
     double blocks_k = 0.0, threads_k = 0.0;
     double total_sm = gpu_prop.sharedMemPerMultiprocessor * gpu_prop.multiProcessorCount;
     double total_threads = static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor) * gpu_prop.multiProcessorCount;
-    for (int i = 0; i < kernels->size(); ++ i) {
+    for (int i = 0; i < total_kernel_kinds; ++ i) {
       launch_bnd = sm_bnd = threads_bnd = 0.0;
       blocks_k = static_cast<double>(kernels->at(i).gridX * kernels->at(i).gridY * kernels->at(i).gridZ);
       threads_k = static_cast<double>(kernels->at(i).blockX * kernels->at(i).blockY * kernels->at(i).blockZ);
@@ -401,20 +409,20 @@ namespace caffe {
       coef_k = static_cast<double>(blocks_k * threads_k) / gpu_prop.multiProcessorCount;
       LOG(INFO) << kernels->at(i).name << " ----> threads_k: " << threads_k << ", blocks_k: " << blocks_k << ", k_num_bnd: " << this->k_num_bnd_[i];
 
-      glp_set_col_name(dop_lp, i + 1, kernels->at(i).name.c_str());
-      glp_set_col_bnds(dop_lp, i + 1, GLP_DB, 0.0, this->k_num_bnd_[i]);
-      glp_set_col_kind(dop_lp, i + 1, GLP_IV); // Used to check low-bound SM.
-      glp_set_obj_coef(dop_lp, i + 1, coef_k);
+      glp_set_col_name(dop, i + 1, kernels->at(i).name.c_str());
+      glp_set_col_bnds(dop, i + 1, GLP_DB, 0.0, this->k_num_bnd_[i]);
+      glp_set_col_kind(dop, i + 1, GLP_IV); // Used to check low-bound SM.
+      glp_set_obj_coef(dop, i + 1, coef_k);
     }
+    std::cout << "After glp_set_col_* ..." << std::endl;
 
     const int total_constraints = 3;
-    glp_add_rows(dop_lp, total_constraints);
-    if (glp_get_num_rows(dop_lp) == 0) {
+    glp_add_rows(dop, total_constraints);
+    if (glp_get_num_rows(dop) == 0) {
       LOG(INFO) << "ERROR! Cannot construct constraints!";
     }
 
     double coef_sm = 0.0, coef_threads = 0.0;
-    int total_kernel_kinds = kernels->size();
     int *row_idx = new int[1 + total_constraints * total_kernel_kinds],
         *col_idx = new int[1 + total_constraints * total_kernel_kinds];
     double *coef_k_arr = new double[1 + total_constraints * total_kernel_kinds];
@@ -435,30 +443,31 @@ namespace caffe {
       col_idx[i + 1 + total_kernel_kinds * 2] = i + 1;
       coef_k_arr[i + 1 + total_kernel_kinds * 2] = 1;
     }
-    glp_set_row_name(dop_lp, 1, "SMs");
-    glp_set_row_bnds(dop_lp, 1, GLP_DB, 0.0, static_cast<double>(gpu_prop.sharedMemPerMultiprocessor));
-    glp_set_row_name(dop_lp, 2, "Threads");
-    glp_set_row_bnds(dop_lp, 2, GLP_DB, 0.0, static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor));
-    glp_set_row_name(dop_lp, 3, "Concurrency");
-    glp_set_row_bnds(dop_lp, 3, GLP_DB, 1.0, static_cast<double>(GpuStreamPool::Get().GetMaxNumOfStreams()));
+    glp_set_row_name(dop, 1, "SMs");
+    glp_set_row_bnds(dop, 1, GLP_DB, 0.0, static_cast<double>(gpu_prop.sharedMemPerMultiprocessor));
+    glp_set_row_name(dop, 2, "Threads");
+    glp_set_row_bnds(dop, 2, GLP_DB, 0.0, static_cast<double>(gpu_prop.maxThreadsPerMultiProcessor));
+    glp_set_row_name(dop, 3, "Concurrency");
+    glp_set_row_bnds(dop, 3, GLP_DB, 1.0, static_cast<double>(GpuStreamPool::Get().GetMaxNumOfStreams()));
 
-    glp_load_matrix(dop_lp, total_kernel_kinds * total_constraints, row_idx, col_idx, coef_k_arr);
+    glp_load_matrix(dop, total_kernel_kinds * total_constraints, row_idx, col_idx, coef_k_arr);
+    std::cout << "After glp_load_matrix ..." << std::endl;
 
-    //glp_simplex(dop_lp, NULL);
+    //glp_simplex(dop, NULL);
     glp_iocp dop_param;
     glp_init_iocp(&dop_param);
     dop_param.presolve = GLP_ON;
-    CHECK_GLP_ERROR(glp_intopt(dop_lp, &dop_param), "glp_intopt");
+    CHECK_GLP_ERROR(glp_intopt(dop, &dop_param), "glp_intopt");
 
     stringstream temp_ss;
     double max_degree_of_parallelism = 0;
-    //double obj_val = glp_get_obj_val(dop_lp);
-    double obj_val = glp_mip_obj_val(dop_lp);
+    //double obj_val = glp_get_obj_val(dop);
+    double obj_val = glp_mip_obj_val(dop);
     LOG(INFO) << "OBJECTIVE value: " << obj_val;
     double *obj_k_val =new double[total_kernel_kinds];
     for (int i = 0; i < total_kernel_kinds; ++ i) {
-      //obj_k_val[i] = glp_get_col_prim(dop_lp, i + 1);
-      obj_k_val[i] = glp_mip_col_val(dop_lp, i + 1);
+      //obj_k_val[i] = glp_get_col_prim(dop, i + 1);
+      obj_k_val[i] = glp_mip_col_val(dop, i + 1);
       max_degree_of_parallelism += ceil(obj_k_val[i]);
       temp_ss << "[ " << kernels->at(i).name << " = " << obj_k_val[i];
       if (i != (total_kernel_kinds - 1)) {
@@ -478,8 +487,8 @@ namespace caffe {
     delete[] coef_k_arr;
 
     int max_dop = 0;
-    for (int i = 0; i < kernels->size(); ++ i) {
-      max_dop = MAX(total_dop, this->k_num_bnd_[i]);
+    for (int i = 0; i < total_kernel_kinds; ++ i) {
+      max_dop = MAX(max_dop, this->k_num_bnd_[i]);
     }
     LOG(INFO) << "max_degree_of_parallelism: " << max_degree_of_parallelism << ", max_dop: " << max_dop;
     if (max_degree_of_parallelism <= 1.0) {
