@@ -63,7 +63,7 @@ inline void SyncedMemory::to_cpu() {
   }
 }
 
-inline void SyncedMemory::to_gpu() {
+inline void SyncedMemory::to_gpu(int stream_id) {
   check_device();
 #ifndef CPU_ONLY
   switch (head_) {
@@ -78,7 +78,7 @@ inline void SyncedMemory::to_gpu() {
       CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
       own_gpu_data_ = true;
     }
-    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
+    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_, stream_id);
     head_ = SYNCED;
     break;
   case HEAD_AT_GPU:

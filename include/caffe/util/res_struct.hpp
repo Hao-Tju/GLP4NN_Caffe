@@ -92,6 +92,19 @@ namespace caffe {
     int start, end; /**< The start and end value that a tree node represents. */
     int covered; /**< Flag used to show whether the current node is covered. */
   } SegTree_t, *SegTree_ptr;
+
+  /**
+   * @brief Structure used to store the degree of parallelism.
+   */
+  typedef struct dop {
+    unsigned int max_val;
+    unsigned int min_val;
+//    unsigned int opt_val;
+
+    dop() {
+      max_val = min_val = 1;
+    }
+  } DopVal_t, *DopVal_ptr;
 } /** namespace caffe. **/
 
 #endif    /** CAFFE_RES_STRUCT_HPP_ **/

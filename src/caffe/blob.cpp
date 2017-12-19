@@ -99,9 +99,9 @@ void Blob<Dtype>::set_cpu_data(Dtype* data) {
 }
 
 template <typename Dtype>
-const Dtype* Blob<Dtype>::gpu_data() const {
+const Dtype* Blob<Dtype>::gpu_data(int stream_id) const {
   CHECK(data_);
-  return (const Dtype*)data_->gpu_data();
+  return (const Dtype*)data_->gpu_data(stream_id);
 }
 
 template <typename Dtype>

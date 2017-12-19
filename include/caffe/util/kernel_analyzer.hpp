@@ -31,6 +31,9 @@
 
 #include <cmath>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 #include "caffe/util/async_tracker.hpp"
 #include "caffe/util/gpu_manager.hpp"
 
@@ -43,6 +46,7 @@ using std::floor;
 using std::sqrt;
 
 namespace caffe {
+  enum LABEL {START = 0, END = 1};
   /**
    * @class KernelAnalyzer
    * @brief Class used to analyze kernel runtime configurations and
@@ -102,6 +106,7 @@ namespace caffe {
        */
       int ParallelDegreeUB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
       int ParallelDegreeLB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
+//      void OptParallelDegree(bool &dop_flag, unsigned int &curr_dop, LABEL label);
 
       /**
        * @brief Degree of parallelism recorder.
@@ -129,10 +134,11 @@ namespace caffe {
       string current_key_str_; /**< Key value of the current loop profiled. */
       // Used to manage degrees of parallelism of kernel blocks.
       // Map between a specific loop and the corresponding parallel degree.
-      map<string, int> pdegree_map_;
+      map<string, DopVal_t> pdegree_map_;
 
       int device_id_; /**< ID of the GPU device that kernels run on. */
-      int *k_num_bnd_;
+      int *k_num_bnd_; /**< Array for recording bounds of degree of parallelism. */
+      cudaEvent_t *start_, *end_;
 
     private:
       // The private constructor to avoid duplicate instantiation.

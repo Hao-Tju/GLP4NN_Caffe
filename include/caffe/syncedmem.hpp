@@ -77,7 +77,7 @@ class SyncedMemory {
   void check_device();
 
   void to_cpu();
-  void to_gpu();
+  void to_gpu(int stream_id = -1);
   void* cpu_ptr_;
   void* gpu_ptr_;
   size_t size_;
