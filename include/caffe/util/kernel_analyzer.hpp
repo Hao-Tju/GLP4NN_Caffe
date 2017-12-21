@@ -138,7 +138,7 @@ namespace caffe {
 
       int device_id_; /**< ID of the GPU device that kernels run on. */
       int *k_num_bnd_; /**< Array for recording bounds of degree of parallelism. */
-      cudaEvent_t *start_, *end_;
+      cudaEvent_t start_, end_;
 
     private:
       // The private constructor to avoid duplicate instantiation.

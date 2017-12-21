@@ -588,7 +588,7 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
     iterations ++;
   }
 
-  if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations % 100 == 0) {
+  if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100 and iterations % 100 == 0) {
     stringstream temp_ss;
     for (int i = 0; i < layers_.size(); ++ i) {
       const caffe::string& layername = layers_[i]->layer_param().name();

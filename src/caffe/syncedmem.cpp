@@ -107,10 +107,10 @@ void SyncedMemory::set_cpu_data(void* data) {
   own_cpu_data_ = false;
 }
 
-const void* SyncedMemory::gpu_data() {
+const void* SyncedMemory::gpu_data(int stream_id) {
   check_device();
 #ifndef CPU_ONLY
-  to_gpu();
+  to_gpu(stream_id);
   return (const void*)gpu_ptr_;
 #else
   NO_GPU;
