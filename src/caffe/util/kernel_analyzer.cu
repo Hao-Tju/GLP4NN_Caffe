@@ -83,6 +83,7 @@ namespace caffe {
 
     //CHECK_CUDA_ERROR(cudaEventCreate(&this->start_), "cudaEventCreate");
     //CHECK_CUDA_ERROR(cudaEventCreate(&this->end_), "cudaEventCreate");
+    this->k_num_bnd_ = NULL;
   }
 
   KernelAnalyzer::~KernelAnalyzer() {
@@ -217,6 +218,10 @@ namespace caffe {
     // threads_bnd: The maximum number of kernels that can be launched concurrently subject to the maxThreadsPerMultiProcessor.
     // k_num_bnd: The final upper bounds of the number of concurrent kernels.
     // Allocate k_num_bnd_ storage.
+    if (this->k_num_bnd_ != NULL) {
+      delete[] this->k_num_bnd_;
+      this->k_num_bnd_ = NULL;
+    }
     if (this->k_num_bnd_ != NULL and ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
       delete[] this->k_num_bnd_;
       this->k_num_bnd_ = new int[total_kernel_kinds];
@@ -382,10 +387,22 @@ namespace caffe {
     temp_ss.str("");
     temp_ss.clear();
 
-    delete[] obj_k_val;
-    delete[] row_idx;
-    delete[] col_idx;
-    delete[] coef_k_arr;
+    if (obj_k_val != NULL) {
+      delete[] obj_k_val;
+      obj_k_val = NULL;
+    }
+    if (row_idx != NULL) {
+      delete[] row_idx;
+      row_idx = NULL;
+    }
+    if (col_idx != NULL) {
+      delete[] col_idx;
+      col_idx = NULL;
+    }
+    if (coef_k_arr != NULL) {
+      delete[] coef_k_arr;
+      coef_k_arr = NULL;
+    }
     glp_delete_prob(dop_mip);
 
     int max_dop = 0;
@@ -428,7 +445,6 @@ namespace caffe {
     if (this->k_num_bnd_ == NULL) {
       this->k_num_bnd_ = new int[total_kernel_kinds];
     }
-    std::cout << "Allocating k_num_bnd_ ..." << std::endl;
     unsigned int launch_bnd = 0, sm_bnd = 0, threads_bnd = 0;
     unsigned int coef_k = 0.0;
     unsigned int blocks_k = 0.0, threads_k = 0.0;
@@ -469,18 +485,17 @@ namespace caffe {
         << ", threads_k=" << threads_k << ", #SM=" << gpu_prop.multiProcessorCount << " )" << ", threads_bnd: " << threads_bnd;
 
       if (max_blocks_k != 0) {
-        std::cout << "max_blocks_k: " << max_blocks_k << ", up_blocks_k: " << up_blocks_k << std::endl;
+        LOG(INFO) << "max_blocks_k: " << max_blocks_k << ", up_blocks_k: " << up_blocks_k;
         max_blocks_k = (max_blocks_k > up_blocks_k) ? up_blocks_k : max_blocks_k;
         max_blocks_k = ceil(static_cast<double>(max_blocks_k) / gpu_prop.multiProcessorCount);
         //tail_blocks_t = blocks_k % max_blocks_k;
         up_blocks_k = ceil(static_cast<double>(blocks_k) / gpu_prop.multiProcessorCount);
-        std::cout << "up_blocks_k: " << up_blocks_k << std::endl;
+        LOG(INFO) << "up_blocks_k: " << up_blocks_k << std::endl;
         if (up_blocks_k > max_blocks_k) {
           kernel_exec_time = (kernel_exec_time * (up_blocks_k % max_blocks_k)) / up_blocks_k;
         }
       }
       launch_bnd = ceil(static_cast<double>(kernel_exec_time) / t_launch);
-      std::cout << "launch_bnd: " << launch_bnd << std::endl;
       this->k_num_bnd_[i] = MIN(this->k_num_bnd_[i], launch_bnd);
       LOG(INFO) << "average_exec_time=" << kernels->at(i).average_exec_time << ", kernel_exec_time=" << kernel_exec_time
         << ", t_launch=" << t_launch << ", launch_bnd= " << launch_bnd;
@@ -567,10 +582,22 @@ namespace caffe {
     temp_ss.str("");
     temp_ss.clear();
 
-    delete[] obj_k_val;
-    delete[] row_idx;
-    delete[] col_idx;
-    delete[] coef_k_arr;
+    if (obj_k_val != NULL) {
+      delete[] obj_k_val;
+      obj_k_val = NULL;
+    }
+    if (row_idx != NULL) {
+      delete[] row_idx;
+      row_idx = NULL;
+    }
+    if (col_idx != NULL) {
+      delete[] col_idx;
+      col_idx = NULL;
+    }
+    if (coef_k_arr != NULL) {
+      delete[] coef_k_arr;
+      coef_k_arr = NULL;
+    }
     glp_delete_prob(dop_mip);
 
     int max_dop = 0;

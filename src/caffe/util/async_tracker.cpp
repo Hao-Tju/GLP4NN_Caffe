@@ -283,7 +283,7 @@ namespace caffe {
     CUptiResult cupti_status;
     CUpti_Activity *record = NULL;
 
-    if (validSize > 0) {
+    if (validSize > 0 and buffer != NULL) {
       while (true) {
         // Get the next kernel recorded if exists.
         cupti_status = cuptiActivityGetNextRecord(buffer, validSize, &record);
@@ -306,7 +306,10 @@ namespace caffe {
     }
 
     // Free the allocated buffer.
-    delete[] buffer;
+    if (buffer != NULL) {
+      delete[] buffer;
+      buffer = NULL;
+    }
   }
 
   void AsyncResTracker::ParseKernelConfig(CUpti_Activity *record) {
@@ -405,7 +408,6 @@ namespace caffe {
       LOG(INFO) << "Kernel name: " << kernel_rec.name << " [" << kernel_rec.invocations << "].";
     }
 
-    LOG(INFO) << "Total number of recorded kernels: " << timestamp_vec_.size() << ". Minimum number of recorded kernels is " << min_invocations << ".";
     std::sort(timestamp_vec_.begin(), timestamp_vec_.end(), Compare<Timestamp_t>);
 
     unsigned int kernels_per_iter = timestamp_vec_.size() / min_invocations;
