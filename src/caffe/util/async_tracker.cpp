@@ -325,7 +325,8 @@ namespace caffe {
         return ;
       }
       string kernel_name = kernel_record->name;
-      if (str_tolower(kernel_name).find("sync") == string::npos) {
+      if (str_tolower(kernel_name).find("sync") == string::npos and
+          kernel_record->start > static_startTimestamp_) {
         // Increment the number of kernels recorded.
         static_kernel_counter_ ++;
 

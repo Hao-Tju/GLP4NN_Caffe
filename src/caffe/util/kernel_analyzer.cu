@@ -13,7 +13,7 @@
 
 #define MIN(a, b) ((std::ceil(a) < std::ceil(b)) ? std::ceil(a) : std::ceil(b))
 #define MAX(a, b) ((a < b) ? b : a)
-#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+#define ARRAY_LEN(array) (array == NULL ? 0 : sizeof(array) / sizeof(array[0]))
 
 #define CHECK_GLP_ERROR(val, func) {                                                                      \
   if (val == GLP_EBOUND) {                                                                                \
@@ -132,10 +132,10 @@ namespace caffe {
       const uint64_t kernel_launch_overhead = AsyncResTracker::Get().GetKernelLaunchOverhead();
       const vector<Kernel_t> *kernels = &AsyncResTracker::Get().GetKernelsRecorded();
 
-      pdegree_map_[current_key_str_].min_val = ParallelDegreeUB(kernel_launch_overhead, kernels, this->device_id_);
+      //pdegree_map_[current_key_str_].min_val = ParallelDegreeUB(kernel_launch_overhead, kernels, this->device_id_);
       pdegree_map_[current_key_str_].max_val = ParallelDegreeLB(kernel_launch_overhead, kernels, this->device_id_);
 
-      LOG(INFO) << current_key_str_ << ": max=" << pdegree_map_[current_key_str_].max_val << ", min=" << pdegree_map_[current_key_str_].min_val;
+      //LOG(INFO) << current_key_str_ << ": max=" << pdegree_map_[current_key_str_].max_val << ", min=" << pdegree_map_[current_key_str_].min_val;
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_].max_val);
       AsyncResTracker::Get().ProfilerUnlock();
 
@@ -218,12 +218,10 @@ namespace caffe {
     // threads_bnd: The maximum number of kernels that can be launched concurrently subject to the maxThreadsPerMultiProcessor.
     // k_num_bnd: The final upper bounds of the number of concurrent kernels.
     // Allocate k_num_bnd_ storage.
-    if (this->k_num_bnd_ != NULL) {
-      delete[] this->k_num_bnd_;
-      this->k_num_bnd_ = NULL;
-    }
-    if (this->k_num_bnd_ != NULL and ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
-      delete[] this->k_num_bnd_;
+    if (this->k_num_bnd_ != NULL or ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
+      if (this->k_num_bnd_ != NULL) {
+        delete[] this->k_num_bnd_;
+      }
       this->k_num_bnd_ = new int[total_kernel_kinds];
     }
     if (this->k_num_bnd_ == NULL) {
@@ -387,22 +385,10 @@ namespace caffe {
     temp_ss.str("");
     temp_ss.clear();
 
-    if (obj_k_val != NULL) {
-      delete[] obj_k_val;
-      obj_k_val = NULL;
-    }
-    if (row_idx != NULL) {
-      delete[] row_idx;
-      row_idx = NULL;
-    }
-    if (col_idx != NULL) {
-      delete[] col_idx;
-      col_idx = NULL;
-    }
-    if (coef_k_arr != NULL) {
-      delete[] coef_k_arr;
-      coef_k_arr = NULL;
-    }
+    delete[] obj_k_val;
+    delete[] row_idx;
+    delete[] col_idx;
+    delete[] coef_k_arr;
     glp_delete_prob(dop_mip);
 
     int max_dop = 0;
@@ -438,8 +424,10 @@ namespace caffe {
     }
 
     // Allocate k_num_bnd_ storage.
-    if (this->k_num_bnd_ != NULL and ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
-      delete[] this->k_num_bnd_;
+    if (ARRAY_LEN(this->k_num_bnd_) < total_kernel_kinds) {
+      if (this->k_num_bnd_ != NULL) {
+        delete[] this->k_num_bnd_;
+      }
       this->k_num_bnd_ = new int[total_kernel_kinds];
     }
     if (this->k_num_bnd_ == NULL) {
@@ -582,22 +570,10 @@ namespace caffe {
     temp_ss.str("");
     temp_ss.clear();
 
-    if (obj_k_val != NULL) {
-      delete[] obj_k_val;
-      obj_k_val = NULL;
-    }
-    if (row_idx != NULL) {
-      delete[] row_idx;
-      row_idx = NULL;
-    }
-    if (col_idx != NULL) {
-      delete[] col_idx;
-      col_idx = NULL;
-    }
-    if (coef_k_arr != NULL) {
-      delete[] coef_k_arr;
-      coef_k_arr = NULL;
-    }
+    delete[] obj_k_val;
+    delete[] row_idx;
+    delete[] col_idx;
+    delete[] coef_k_arr;
     glp_delete_prob(dop_mip);
 
     int max_dop = 0;
