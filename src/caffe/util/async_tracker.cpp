@@ -316,7 +316,7 @@ namespace caffe {
     // Only parse kernel information.
     if ((record->kind == CUPTI_ACTIVITY_KIND_KERNEL) or
         (record->kind == CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL)) {
-      auto *kernel_record = reinterpret_cast<CUpti_ActivityKernel3 *>(record);
+      CUpti_ActivityKernel3 *kernel_record = reinterpret_cast<CUpti_ActivityKernel3 *>(record);
       bool flag = false;
       CHECK_KERNEL_RECORD(kernel_record, flag);
       if (kernel_record->deviceId != profiling_device_id_) {
@@ -325,8 +325,7 @@ namespace caffe {
         return ;
       }
       string kernel_name = kernel_record->name;
-      if (str_tolower(kernel_name).find("sync") == string::npos and
-          kernel_record->start > static_startTimestamp_) {
+      if (str_tolower(kernel_name).find("sync") == string::npos) {
         // Increment the number of kernels recorded.
         static_kernel_counter_ ++;
 
@@ -357,7 +356,7 @@ namespace caffe {
           kernel.invocations = 1;
           kernel.duration = kernel_duration;
           kernels_vec_ptr_->push_back(kernel);
-          std::cout << "New kernel with name " << kernel.name << " (total " << kernels_vec_ptr_->size() << " kernels)." << std::endl;
+          //std::cout << "New kernel with name " << kernel.name << " (total " << kernels_vec_ptr_->size() << " kernels)." << std::endl;
         } else {
           kernels_vec_ptr_->at(pos).invocations ++;
           kernels_vec_ptr_->at(pos).duration += kernel_duration;
@@ -434,6 +433,8 @@ namespace caffe {
     InfoLog::Get().RecordInfoLog("buffer_overhead", "TEMP-BUFFER-OVERHEAD", temp_ss.str());
 
     LOG(INFO) << "The launch overhead of a kernel is " << kernel_launch_overhead_ << "!";
+    temp_ss.str("");
+    temp_ss.clear();
 
     return kernel_launch_overhead_;
   }
@@ -513,6 +514,7 @@ namespace caffe {
       return ;
     }
 
+    /*
     if (!idle_time_stream_.is_open()) {
       stringstream log_filename_ss;
       log_filename_ss << "./LOG/occ/" << layer_name << "_ParallelDeg_" << parallel_degree << ".occ";
@@ -524,6 +526,7 @@ namespace caffe {
       log_filename_ss.str("");
       log_filename_ss.clear();
     }
+    */
     vector<uint64_t> time_vec;
 
     // Remove redundant timestamp from original record.
@@ -571,8 +574,17 @@ namespace caffe {
     uint64_t idle_time = total_time - busy_time;
 
     double occupancy_ratio = static_cast<double>(busy_time) / static_cast<double>(total_time);
-    LOG(INFO) << "Occupancy ratio of layer " << layer_name << " (#streams = " << parallel_degree << ") is " << occupancy_ratio << ".";
-    idle_time_stream_ << layer_name << "," << parallel_degree << "," << occupancy_ratio << "," << total_time << "," << idle_time << std::endl;
+    LOG(INFO) << "Occupancy ratio of layer " << layer_name << " (#streams = " << parallel_degree << ") is " << occupancy_ratio << ". IDLE = " << idle_time << ", TOTAL=" << total_time;
+    // idle_time_stream_ << layer_name << "," << parallel_degree << "," << occupancy_ratio << "," << total_time << "," << idle_time << std::endl;
+
+    stringstream filename_ss, content_ss;
+    filename_ss << layer_name << "_ParallelDeg_" << parallel_degree << "_occ";
+    content_ss << layer_name << "," << parallel_degree << "," << occupancy_ratio << "," << total_time << "," << idle_time;
+    InfoLog::Get().Record("Meanlingless_Value", filename_ss.str(), content_ss.str());
+    filename_ss.str("");
+    filename_ss.clear();
+    content_ss.str("");
+    filename_ss.clear();
 
     // Free memory allocated.
     time_vec.clear();
@@ -581,16 +593,7 @@ namespace caffe {
   }
 
   void AsyncResTracker::TimestampLog(const string filename) const {
-    //fstream temp_timestamp_log(filename.c_str(), std::ios::out | std::ios::app);
     stringstream temp_ss;
-
-    /*
-    if (!temp_timestamp_log.is_open()) {
-      LOG(INFO) << "Cannot OPEN timestamp log file: ./LOG/" << filename << ".csv!";
-    }
-
-    temp_timestamp_log << "# timestamp,stream_id,kernel_name" << std::endl;
-    */
 
     const int step = 40;
     for (int i = 0; i < this->timestamp_vec_.size(); i += step) {
@@ -604,27 +607,10 @@ namespace caffe {
           << temp_timestamp->name << "\n\n\n";
       }
 
-      /*
-      switch(temp_timestamp_log.rdstate()) {
-        case std::ios_base::badbit:
-          LOG(INFO) << "FSTREAM ERROR! Irrecoverable stream error!";
-          break;
-        case std::ios_base::failbit:
-          LOG(INFO) << "FSTREAM ERROR! Input/output operation failed!";
-          break;
-        case std::ios_base::eofbit:
-          LOG(INFO) << "FSTREAM ERROR! Associated input sequence has reached end-of-file!";
-          break;
-        default:
-          break;
-      }
-
-      temp_timestamp_log.clear();
-      temp_timestamp_log << temp_ss.str();
-      temp_timestamp_log.flush();
-      */
-      InfoLog::Get().RecordInfoLog("", filename + "_timestamp", temp_ss.str());
+      InfoLog::Get().RecordInfoLog("Meaningless_Value", filename + "_timestamp", temp_ss.str());
     }
+    temp_ss.str("");
+    temp_ss.clear();
   }
 
   void AsyncResTracker::TempBufRelease() {
