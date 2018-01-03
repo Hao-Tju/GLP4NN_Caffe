@@ -122,7 +122,7 @@ namespace caffe {
       void RecordKernelsAnalyzed(const vector<Kernel_t>* kernels) const;
 
       /**
-       * @brief  Device setting function.
+       * @brief Device setting function.
        *
        * Function used to set the current device that kernels are running on.
        *
@@ -130,14 +130,23 @@ namespace caffe {
        */
       void SetDevice(int device_id);
 
+      /**
+       * @brief KernelAnalyzer reset function.
+       *
+       * Reset the class member to the initialization value.
+       */
+      void Reset();
+
     protected:
       string current_key_str_; /**< Key value of the current loop profiled. */
       // Used to manage degrees of parallelism of kernel blocks.
       // Map between a specific loop and the corresponding parallel degree.
-      map<string, DopVal_t> pdegree_map_;
+      //map<string, DopVal_t> pdegree_map_;
+      map<string, int> pdegree_map_;
 
       int device_id_; /**< ID of the GPU device that kernels run on. */
-      int *k_num_bnd_; /**< Array for recording bounds of degree of parallelism. */
+      //int *k_num_bnd_; /**< Array for recording bounds of degree of parallelism. */
+      map<string, vector<int>> k_num_bnd_;
       cudaEvent_t start_, end_;
 
     private:

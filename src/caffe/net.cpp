@@ -555,13 +555,6 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
     for (int c = 0; c < before_forward_.size(); ++c) {
       before_forward_[c]->run(i);
     }
-    /*
-    static bool res_tracker_flag = true;
-    if ((this->phase() == caffe::TRAIN) and (std::strcmp(layers_[i]->layer_param().type().c_str(), "Convolution") == 0) and res_tracker_flag) {
-      // reinterpret_cast<BaseConvolutionLayer<Dtype>* >(layers_[i].get())->GetResTracker().ProfilerStart();
-      cudaProfilerStart();
-    }
-    */
     if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100) {
       forward_timer.Start();      // Added by Hao Fu.
     }
@@ -569,15 +562,6 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
     if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100) {
       forward_time_per_layer[i] += forward_timer.MicroSeconds();   // Added by Hao Fu.
     }
-    /*
-    if ((this->phase() == caffe::TRAIN) and (std::strcmp(layers_[i]->layer_param().type().c_str(), "Convolution") == 0) and res_tracker_flag) {
-    //   BaseConvolutionLayer<Dtype>* conv_ptr = reinterpret_cast<BaseConvolutionLayer<Dtype>* >(layers_[i].get());
-    //   conv_ptr->GetResTracker().ProfilerStop();
-    //   conv_ptr->GetResTracker().ComputeOccupancyRatio(layers_[i]->layer_param().name(), conv_ptr->GetParallelDegree());
-      res_tracker_flag = false;
-      cudaProfilerStop();
-    }
-    */
     loss += layer_loss;
     if (debug_info_) { ForwardDebugInfo(i); }
     for (int c = 0; c < after_forward_.size(); ++c) {

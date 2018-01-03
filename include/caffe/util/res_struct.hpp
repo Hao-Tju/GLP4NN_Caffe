@@ -91,6 +91,28 @@ namespace caffe {
     int left, right; /**< The left and right child of a tree node. */
     int start, end; /**< The start and end value that a tree node represents. */
     int covered; /**< Flag used to show whether the current node is covered. */
+
+    node() {
+      this->left = this->right = this->start = this->end = this->covered = 0;
+    }
+
+    node(int val) {
+      if (val != 0) {
+        std::cerr << "WRONG VALUE! " << __FILE__ << "@" << __LINE__ << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      this->left = this->right = this->start = this->end = this->covered = 0;
+    }
+
+    struct node& operator=(const struct node& other) {
+      this->left = other.left;
+      this->right = other.right;
+      this->start = other.start;
+      this->end = other.end;
+      this->covered = other.covered;
+
+      return *this;
+    }
   } SegTree_t, *SegTree_ptr;
 
   /**

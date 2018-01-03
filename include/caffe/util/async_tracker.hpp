@@ -145,9 +145,8 @@ namespace caffe {
       void ProfilerStart(int device_id = -1);
       /**
        * @brief   Kernel profiler stopper.
-       * @param[in] device_id    ID of the device needed to be profiled.
        */
-      void ProfilerStop(int device_id);
+      void ProfilerStop();
 
       /**
        * @brief   Buffer request function.
@@ -274,7 +273,7 @@ namespace caffe {
       // Member variable used to identify whether start profiling.
       static bool profiler_flag_;
       // Record kind of the current activity profiled.
-      // static CUpti_ActivityKind cupti_act_kind_;
+      static CUpti_ActivityKind cupti_act_kind_;
 
       // Static start timestamp of the profiling process.
       static uint64_t static_startTimestamp_;
@@ -290,6 +289,9 @@ namespace caffe {
       static vector<Timestamp_t> *timestamp_vec_ptr_;
       // Member variable used to store kernel timestamps.
       vector<Timestamp_t> timestamp_vec_;
+
+      // The current profiling type: CONCURRENT or SERIAL.
+      static PROFTYPE curr_prof_type_;
 
       // Member variable used to represent the next available tree node ID.
       // Only used to construct the segment tree.

@@ -161,6 +161,8 @@ class Caffe {
   // Sets the device. Since we have cublas and curand stuff, set device also
   // requires us to reset those values.
   static void SetDevice(const int device_id);
+  // Get the ID of the current device.
+  static int GetDeviceID();
   // Prints the current GPU status.
   static void DeviceQuery();
   // Check if specified device is available
@@ -181,6 +183,7 @@ class Caffe {
 #ifndef CPU_ONLY
   cublasHandle_t cublas_handle_;
   curandGenerator_t curand_generator_;
+  int device_id_; /*< Added by Hao Fu. Used to store the device ID that are currently used. */
 #endif
   shared_ptr<RNG> random_generator_;
 
