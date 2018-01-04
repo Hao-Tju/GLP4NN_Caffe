@@ -108,9 +108,17 @@ LOG
 NVPROF
 
 # lock.mdb
-examples/mnist/mnist_test_lmdb/lock.mdb
-examples/mnist/mnist_train_lmdb/lock.mdb
+*.mdb
 
 # nohup setting
 nohup.out
-experiment.log
+*.log
+
+# Makefile
+Makefile
+Makefile.config
+Makefile.config.serial
+Makefile.config.prof
+
+# TODO file
+TODO

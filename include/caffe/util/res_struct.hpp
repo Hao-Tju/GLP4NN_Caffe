@@ -1,21 +1,3 @@
-///
-///      @file  res_struct.hpp
-///     @brief  Definition of structures.
-///
-/// Definition of structures adopted to record kernel profiling information.
-///
-///    @author  Hao Fu (Hao), haofu@tju.edu.cn
-///
-///    Created  2017-09-22
-///   Compiler  clang/clang++
-///    Company  Tianjin University
-///  Copyright  GNU GPL v3.0
-///
-/// This source code is released for free distribution under the terms of the
-/// GNU General Public License as published by the Free Software Foundation.
-///=====================================================================================
-///
-
 #ifndef CPU_ONLY
 #ifdef USE_PROF
 
@@ -31,6 +13,7 @@ namespace caffe {
    * @brief Structure used to record the start and end timestamp of a kernel.
    */
   typedef struct K_Timestamp {
+    string name;
     uint64_t start;  /**< The start time of a kernel. */
     uint64_t end;  /**< The end time of a kernel. */
     uint32_t streamId;  /**< ID of the stream running this kernel. */
@@ -108,7 +91,42 @@ namespace caffe {
     int left, right; /**< The left and right child of a tree node. */
     int start, end; /**< The start and end value that a tree node represents. */
     int covered; /**< Flag used to show whether the current node is covered. */
+
+    node() {
+      this->left = this->right = this->start = this->end = this->covered = 0;
+    }
+
+    node(int val) {
+      if (val != 0) {
+        std::cerr << "WRONG VALUE! " << __FILE__ << "@" << __LINE__ << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      this->left = this->right = this->start = this->end = this->covered = 0;
+    }
+
+    struct node& operator=(const struct node& other) {
+      this->left = other.left;
+      this->right = other.right;
+      this->start = other.start;
+      this->end = other.end;
+      this->covered = other.covered;
+
+      return *this;
+    }
   } SegTree_t, *SegTree_ptr;
+
+  /**
+   * @brief Structure used to store the degree of parallelism.
+   */
+  typedef struct dop {
+    unsigned int max_val;
+    unsigned int min_val;
+//    unsigned int opt_val;
+
+    dop() {
+      max_val = min_val = 1;
+    }
+  } DopVal_t, *DopVal_ptr;
 } /** namespace caffe. **/
 
 #endif    /** CAFFE_RES_STRUCT_HPP_ **/

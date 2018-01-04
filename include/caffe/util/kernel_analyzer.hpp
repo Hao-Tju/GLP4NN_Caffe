@@ -31,6 +31,9 @@
 
 #include <cmath>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 #include "caffe/util/async_tracker.hpp"
 #include "caffe/util/gpu_manager.hpp"
 
@@ -43,6 +46,7 @@ using std::floor;
 using std::sqrt;
 
 namespace caffe {
+  enum LABEL {START = 0, END = 1};
   /**
    * @class KernelAnalyzer
    * @brief Class used to analyze kernel runtime configurations and
@@ -91,7 +95,8 @@ namespace caffe {
        * @brief ParallelDegree analyzer AND getter.
        *
        * Method used to analyze recorded kernels and return the degree of parallelism of current
-       * kernel block.
+       * kernel block. The method is based on upper bound of thread blocks on a single
+       * multiprocessor.
        *
        * @param[in] t_launch          Time needed to launch a single CUDA kernel.
        * @param[in] kernels           Vector used to store execution configuration of
@@ -99,12 +104,25 @@ namespace caffe {
        *
        * @return Degree of parallelism of the current kernel block.
        */
-      int ParallelDegree(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
-
-      void RecordParallelDegree();
+      int ParallelDegreeUB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
+      int ParallelDegreeLB(uint64_t t_launch, const vector<Kernel_t>* kernels, int device_id);
+//      void OptParallelDegree(bool &dop_flag, unsigned int &curr_dop, LABEL label);
 
       /**
-       * @brief  Device setting function.
+       * @brief Degree of parallelism recorder.
+       *
+       * Method used to record the degree of parallelism of each execution unit.
+       */
+      void RecordParallelDegree();
+      /**
+       * @brief Kernels analyzed recorder.
+       *
+       * Method used to record the kernels that is adopted to do analysis.
+       */
+      void RecordKernelsAnalyzed(const vector<Kernel_t>* kernels) const;
+
+      /**
+       * @brief Device setting function.
        *
        * Function used to set the current device that kernels are running on.
        *
@@ -112,13 +130,24 @@ namespace caffe {
        */
       void SetDevice(int device_id);
 
+      /**
+       * @brief KernelAnalyzer reset function.
+       *
+       * Reset the class member to the initialization value.
+       */
+      void Reset();
+
     protected:
       string current_key_str_; /**< Key value of the current loop profiled. */
       // Used to manage degrees of parallelism of kernel blocks.
       // Map between a specific loop and the corresponding parallel degree.
+      //map<string, DopVal_t> pdegree_map_;
       map<string, int> pdegree_map_;
 
       int device_id_; /**< ID of the GPU device that kernels run on. */
+      //int *k_num_bnd_; /**< Array for recording bounds of degree of parallelism. */
+      map<string, vector<int>> k_num_bnd_;
+      cudaEvent_t start_, end_;
 
     private:
       // The private constructor to avoid duplicate instantiation.

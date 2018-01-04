@@ -61,7 +61,7 @@ class SyncedMemory {
   ~SyncedMemory();
   const void* cpu_data();
   void set_cpu_data(void* data);
-  const void* gpu_data();
+  const void* gpu_data(int stream_id = -1);
   void set_gpu_data(void* data);
   void* mutable_cpu_data();
   void* mutable_gpu_data();
@@ -77,7 +77,7 @@ class SyncedMemory {
   void check_device();
 
   void to_cpu();
-  void to_gpu();
+  void to_gpu(int stream_id = -1);
   void* cpu_ptr_;
   void* gpu_ptr_;
   size_t size_;

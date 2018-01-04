@@ -2,15 +2,13 @@
 
 set -e
 
-echo "$@ $#"
-
 exec_cmds="$1"
 cpnn_exec_cmds="$2"
 curr_cmds=""
 
 if [ $# -lt 1 ]; then
   echo "WRONG USAGE! MISSING argument!"
-  echo "USAGE: $0 <command text>"
+  echo "USAGE: $0 <serial command text> <parallel command text>"
   exit
 fi
 

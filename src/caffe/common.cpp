@@ -66,6 +66,11 @@ void Caffe::SetDevice(const int device_id) {
   NO_GPU;
 }
 
+// Added by Hao Fu.
+int Caffe::GetDeviceID() {
+  NO_GPU;
+}
+
 void Caffe::DeviceQuery() {
   NO_GPU;
 }

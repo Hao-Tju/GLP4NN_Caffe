@@ -29,7 +29,7 @@
  */
 #define CHECK_CUDA_ERROR(err, functionName) {                   \
   if (err != cudaSuccess) {                                     \
-    std::cout << __FILE__ << ":" << __LINE__ << ": error " <<   \
+    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": error " <<   \
       err << " for CUDA Runtime API function '" << functionName \
       << "': " << cudaGetErrorString(err) << std::endl;         \
     exit (EXIT_FAILURE);                                        \
@@ -44,7 +44,7 @@
   if (err != CUPTI_SUCCESS) {                                           \
     const char* errstr;                                                 \
     cuptiGetResultString(err, &errstr);                                 \
-    std::cout << __FILE__ << ":" << __LINE__ << ": Error " << errstr << \
+    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": Error " << errstr << \
       " for CUPTI API function '" << cuptifunc << "'." << std::endl;    \
     exit(EXIT_FAILURE);                                                 \
   }                                                                     \
@@ -58,7 +58,7 @@
   if (err != CUDA_SUCCESS) {                                    \
     const char* errstr;                                         \
     cuGetErrorString(err, &errstr);                             \
-    std::cout << __FILE__ << ":" << __LINE__ << ": error " <<   \
+    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": error " <<   \
       err << " for CUDA Driver API function '" << functionName  \
       << "': " << errstr << std::endl;                          \
     exit (EXIT_FAILURE);                                        \
@@ -84,6 +84,7 @@ private:                                                        \
 #define ALIGN_BUFFER(buffer, align_size)                        \
   ((reinterpret_cast<uintptr_t>(buffer) & (align_size - 1)) ? (buffer + align_size - (reinterpret_cast<uintptr_t>(buffer) & (align_size - 1))) : buffer)
 
+// Standard built-in class used in AsyncResTracker.
 using std::string;
 using std::vector;
 using std::map;
@@ -91,6 +92,8 @@ using std::fstream;
 using std::stringstream;
 
 namespace caffe {
+  enum PROFTYPE {DEFAULT = 0, SERIAL = 1, CONCURRENT = 2};
+
   /**
    * @brief AsyncResTracker class.
    *
@@ -113,7 +116,7 @@ namespace caffe {
       /**
        * @brief   Initialize CUPTI settings of a class object.
        */
-      static void InitAsyncResTracker();
+      static void InitAsyncResTracker(PROFTYPE prof_type = SERIAL);
 
       /**
        * @brief   ProfilerLock function.
@@ -129,7 +132,6 @@ namespace caffe {
        * Function used to unlock a profiler.
        */
       void ProfilerUnlock() {
-        this->kernels_vec_.clear();
         this->profiler_mutex_.unlock();
       }
 
@@ -143,9 +145,8 @@ namespace caffe {
       void ProfilerStart(int device_id = -1);
       /**
        * @brief   Kernel profiler stopper.
-       * @param[in] device_id    ID of the device needed to be profiled.
        */
-      void ProfilerStop(int device_id);
+      void ProfilerStop();
 
       /**
        * @brief   Buffer request function.
@@ -243,6 +244,21 @@ namespace caffe {
        * @param[in] parallel_degree The current parallel_degree configuration.
        */
       void ComputeOccupancyRatio(const string layer_name, const unsigned int parallel_degree);
+      /**
+       * @brief   Record the kernel timestamp.
+       *
+       * This method is used to write kernel timestamps recorded for further analysis.
+       *
+       * @param[in] filename        Name of the log file.
+       * @param[in] timestamp_ptr   Kernel timestamp vector.
+       */
+      void TimestampLog(const string filename) const;
+      /**
+       * @brief   Temp buffer release method.
+       *
+       * Method used to release temporary buffer allocated while analyzing kernels recorded.
+       */
+      void TempBufRelease();
 
     protected:
       // Boost mutex used to lock the profiler.
@@ -257,7 +273,7 @@ namespace caffe {
       // Member variable used to identify whether start profiling.
       static bool profiler_flag_;
       // Record kind of the current activity profiled.
-      // static CUpti_ActivityKind cupti_act_kind_;
+      static CUpti_ActivityKind cupti_act_kind_;
 
       // Static start timestamp of the profiling process.
       static uint64_t static_startTimestamp_;
@@ -273,6 +289,9 @@ namespace caffe {
       static vector<Timestamp_t> *timestamp_vec_ptr_;
       // Member variable used to store kernel timestamps.
       vector<Timestamp_t> timestamp_vec_;
+
+      // The current profiling type: CONCURRENT or SERIAL.
+      static PROFTYPE curr_prof_type_;
 
       // Member variable used to represent the next available tree node ID.
       // Only used to construct the segment tree.

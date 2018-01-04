@@ -92,6 +92,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     }
 #ifdef USE_PROF
     KernelAnalyzer::Get().AnalyzerStop();
+    //LOG(INFO) << "End " << this->layer_param().name() << "_LOOP1:" << parallel_degree;
 #endif
   }
 }
