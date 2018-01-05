@@ -109,6 +109,7 @@ NVPROF
 
 # lock.mdb
 *.mdb
+lock.mdb
 
 # nohup setting
 nohup.out
