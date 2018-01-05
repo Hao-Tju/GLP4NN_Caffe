@@ -5,6 +5,11 @@
 DEFINE_int32(gemmOpt, 0,
     "Optional; loop unrolling flag.");
 
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+DEFINE_int32(parallelDeg, 1,
+    "Optional. static loop unrolling flag (>=1).");
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 namespace caffe {
 
 template <typename Dtype>
@@ -17,16 +22,23 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
     // Modified by Hao Fu.
     int parallel_degree = 0;
-    static bool folder_flag = true;
 #ifdef USE_PROF
+    static bool folder_flag = true;
     KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
     if (parallel_degree) {
       this->SetColBufferNum(parallel_degree);
     }
 #endif
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    /*
     if (parallel_degree == 0) {
       parallel_degree = 1;
     }
+    */
+    if (parallel_degree < FLAGS_parallelDeg) {
+      parallel_degree = FLAGS_parallelDeg;
+    }
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     if (FLAGS_gemmOpt == 0) {
 #ifdef USE_PROF
       if (folder_flag) {
@@ -34,6 +46,10 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         InfoLog::Get().SetFolder("Unoptimized");
         folder_flag = false;
       }
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#else
+      this->SetColBufferNum(FLAGS_parallelDeg);
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #endif
       for (int n = 0; n < this->num_; n += parallel_degree) {
         for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {

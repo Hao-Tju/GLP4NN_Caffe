@@ -22,6 +22,11 @@
 // Added by Hao Fu.
 #include "caffe/util/info_log.hpp"
 
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+DECLARE_int32(parallelDeg);
+using std::to_string;
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 namespace caffe {
 
 template <typename Dtype>
@@ -555,11 +560,15 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
     for (int c = 0; c < before_forward_.size(); ++c) {
       before_forward_[c]->run(i);
     }
-    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100) {
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN
+        and iterations > 100
+        and std::strcmp(layers_[i]->type(), "Convolution") == 0) {
       forward_timer.Start();      // Added by Hao Fu.
     }
     Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
-    if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100) {
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN
+        and iterations > 100
+        and std::strcmp(layers_[i]->type(), "Convolution") == 0) {
       forward_time_per_layer[i] += forward_timer.MicroSeconds();   // Added by Hao Fu.
     }
     loss += layer_loss;
@@ -568,30 +577,33 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
       after_forward_[c]->run(i);
     }
   }
+
   if (Caffe::root_solver() and this->phase() == caffe::TRAIN) {
     iterations ++;
   }
 
   if (Caffe::root_solver() and this->phase() == caffe::TRAIN and iterations > 100 and iterations % 100 == 0) {
     stringstream temp_ss;
-    for (int i = 0; i < layers_.size(); ++ i) {
-      const caffe::string& layername = layers_[i]->layer_param().name();
-      LOG_IF(INFO, Caffe::root_solver()) << std::setfill(' ') << std::setw(10) << layername << "\tforward: " << forward_time_per_layer[i] / 100000.0 << " ms( " << forward_time_per_layer[i] / 100.0 << " us ) --- ITERATIONS: " << iterations;
+    for (int i = 0; i < layers_.size() ; ++ i) {
+      if (std::strcmp(layers_[i]->type(), "Convolution") == 0) {
+        const caffe::string& layername = layers_[i]->layer_param().name();
+        LOG_IF(INFO, Caffe::root_solver()) << std::setfill(' ') << std::setw(10) << layername << "\tforward: " << forward_time_per_layer[i] / 100000.0 << " ms( " << forward_time_per_layer[i] / 100.0 << " us ) --- ITERATIONS: " << iterations;
 
-      temp_ss << "ITER-" << iterations << "," << layername << "," << forward_time_per_layer[i] / 100000.0 << " ms," << forward_time_per_layer[i] / 100.0 << " us";
+        temp_ss << "ITER-" << iterations << "," << layername << "," << forward_time_per_layer[i] / 100000.0 << " ms," << forward_time_per_layer[i] / 100.0 << " us";
 #ifdef USE_PROF
-      InfoLog::Get().RecordInfoLog("Forward", "Forward-PROF", temp_ss.str());
+        InfoLog::Get().RecordInfoLog("Forward", "Forward-PROF", temp_ss.str());
 #else
-      InfoLog::Get().RecordInfoLog("Forward", "Forward-DEFAULT", temp_ss.str());
+        InfoLog::Get().RecordInfoLog("Forward", "Forward-DEFAULT" + to_string(FLAGS_parallelDeg), temp_ss.str());
 #endif
-      temp_ss.str("");
-      temp_ss.clear();
+        temp_ss.str("");
+        temp_ss.clear();
 
-      forward_time_per_layer[i] = 0.0;
+        forward_time_per_layer[i] = 0.0;
+      }
     }
 
 #ifdef USE_PROF
-    if (iterations == 200) {
+    if (iterations == 99) {
       KernelAnalyzer::Get().RecordParallelDegree();
     }
 #endif
