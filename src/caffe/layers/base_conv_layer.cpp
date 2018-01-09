@@ -431,6 +431,7 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     if (!skip_im2col) {
       // Modified by Hao Fu.
       // conv_im2col_gpu(input, col_buffer_.mutable_gpu_data(), stream_id);
+      //LOG(INFO) << "Col_buffer index = " << (stream_id == -1 ? 0 : stream_id) << ", #col_buffer = " << col_buffer_.size();
       conv_im2col_gpu(input, col_buffer_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(), stream_id);
     }
     // Modified by Hao Fu.
