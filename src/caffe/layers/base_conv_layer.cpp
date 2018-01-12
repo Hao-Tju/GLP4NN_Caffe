@@ -274,9 +274,9 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   out_spatial_dim_ = top[0]->count(first_spatial_axis);
   if (bias_term_) {
     vector<int> bias_multiplier_shape(1, out_spatial_dim_);
-    bias_multiplier_[0].Reshape(bias_multiplier_shape);
-    caffe_set(bias_multiplier_[0].count(), Dtype(1),
-        bias_multiplier_[0].mutable_cpu_data());
+    bias_multiplier_[0]->Reshape(bias_multiplier_shape);
+    caffe_set(bias_multiplier_[0]->count(), Dtype(1),
+        bias_multiplier_[0]->mutable_cpu_data());
   }
 
   // Added by Hao Fu. Used to log layer parameter to log file.
@@ -310,7 +310,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_cpu_bias(Dtype* output,
     const Dtype* bias) {
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
-      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_[0].cpu_data(),
+      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_[0]->cpu_data(),
       (Dtype)1., output);
 }
 
@@ -357,7 +357,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
     const Dtype* input) {
   caffe_cpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-      input, bias_multiplier_[0].cpu_data(), 1., bias);
+      input, bias_multiplier_[0]->cpu_data(), 1., bias);
 }
 
 #ifndef CPU_ONLY
@@ -456,7 +456,8 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
     const Dtype* bias, int stream_id) {
   int index = (stream_id == -1) ? 0 : stream_id;
-  const Dtype* temp_bias_multiplier = bias_multiplier_[index].gpu_data();
+  LOG(INFO) << "Index ....." << index;
+  const Dtype* temp_bias_multiplier = bias_multiplier_[index]->gpu_data();
   //if (!bias_multiplier_flag_) {
   //  CUDA_CHECK(cudaDeviceSynchronize());
   //  bias_multiplier_flag_ = true;
@@ -514,7 +515,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_bias(Dtype* bias,
     const Dtype* input) {
   caffe_gpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-      input, bias_multiplier_[0].gpu_data(), 1., bias, -1);
+      input, bias_multiplier_[0]->gpu_data(), 1., bias, -1);
 }
 
 #endif  // !CPU_ONLY
