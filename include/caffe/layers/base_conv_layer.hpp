@@ -103,6 +103,9 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   vector<int> output_shape_;
   const vector<int>* bottom_shape_;
 
+  // Added by Hao Fu. 2018-01-12
+  bool bias_multiplier_flag_;
+
   int num_spatial_axes_;
   int bottom_dim_;
   int top_dim_;
@@ -197,8 +200,8 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   // Modified by Hao Fu.
   // Blob<Dtype> col_buffer_;
   vector<Blob<Dtype>*> col_buffer_;
-  bool bias_multiplier_flag_;
-  Blob<Dtype> bias_multiplier_;
+  //Blob<Dtype> bias_multiplier_;
+  vector<Blob<Dtype>*> bias_multiplier_;
 };
 
 }  // namespace caffe

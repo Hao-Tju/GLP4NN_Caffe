@@ -31,6 +31,7 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   */
   // for (int i = 0; i < this->parallel_degree_; ++ i) {
   col_buffer_.push_back(new Blob<Dtype>());
+  bias_multiplier_.push_back(new Blob<Dtype>());
   bias_multiplier_flag_ = false;
   // }
 
@@ -273,9 +274,9 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   out_spatial_dim_ = top[0]->count(first_spatial_axis);
   if (bias_term_) {
     vector<int> bias_multiplier_shape(1, out_spatial_dim_);
-    bias_multiplier_.Reshape(bias_multiplier_shape);
-    caffe_set(bias_multiplier_.count(), Dtype(1),
-        bias_multiplier_.mutable_cpu_data());
+    bias_multiplier_[0].Reshape(bias_multiplier_shape);
+    caffe_set(bias_multiplier_[0].count(), Dtype(1),
+        bias_multiplier_[0].mutable_cpu_data());
   }
 
   // Added by Hao Fu. Used to log layer parameter to log file.
@@ -309,7 +310,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_cpu_bias(Dtype* output,
     const Dtype* bias) {
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
-      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.cpu_data(),
+      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_[0].cpu_data(),
       (Dtype)1., output);
 }
 
@@ -356,7 +357,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
     const Dtype* input) {
   caffe_cpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-      input, bias_multiplier_.cpu_data(), 1., bias);
+      input, bias_multiplier_[0].cpu_data(), 1., bias);
 }
 
 #ifndef CPU_ONLY
@@ -374,8 +375,8 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
       LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
 
       int buffer_size = 1;
-      for (int i = 0; i < col_buffer_shape_.size(); ++ i) {
-        buffer_size *= col_buffer_shape_[i];
+      for (int buff_idx = 0; buff_idx < col_buffer_shape_.size(); ++ buff_idx) {
+        buffer_size *= col_buffer_shape_[buff_idx];
       }
 
       LOG(INFO) << "col_buffer_ overhead[" << former_size << "->" << buffer_num << "]: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
@@ -390,7 +391,9 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
     }
 
     col_buffer_.push_back(new Blob<Dtype>());
+    bias_multiplier_.push_back(new Blob<Dtype>());
     col_buffer_[i]->Reshape(col_buffer_shape_);
+    bias_multiplier_[i]->Reshape(vector<int>(1, out_spatial_dim_));
   }
 
   return ;
@@ -452,11 +455,12 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
     const Dtype* bias, int stream_id) {
-  const Dtype* temp_bias_multiplier = bias_multiplier_.gpu_data();
-  if (!bias_multiplier_flag_) {
-    CUDA_CHECK(cudaDeviceSynchronize());
-    bias_multiplier_flag_ = true;
-  }
+  int index = (stream_id == -1) ? 0 : stream_id;
+  const Dtype* temp_bias_multiplier = bias_multiplier_[index].gpu_data();
+  //if (!bias_multiplier_flag_) {
+  //  CUDA_CHECK(cudaDeviceSynchronize());
+  //  bias_multiplier_flag_ = true;
+  //}
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
       out_spatial_dim_, 1, (Dtype)1., bias, temp_bias_multiplier,
       (Dtype)1., output,
@@ -510,7 +514,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_bias(Dtype* bias,
     const Dtype* input) {
   caffe_gpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-      input, bias_multiplier_.gpu_data(), 1., bias, -1);
+      input, bias_multiplier_[0].gpu_data(), 1., bias, -1);
 }
 
 #endif  // !CPU_ONLY
