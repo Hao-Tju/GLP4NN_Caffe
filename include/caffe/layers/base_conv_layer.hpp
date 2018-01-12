@@ -197,6 +197,7 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   // Modified by Hao Fu.
   // Blob<Dtype> col_buffer_;
   vector<Blob<Dtype>*> col_buffer_;
+  bool bias_multiplier_flag_;
   Blob<Dtype> bias_multiplier_;
 };
 

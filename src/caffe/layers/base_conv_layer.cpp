@@ -31,6 +31,7 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   */
   // for (int i = 0; i < this->parallel_degree_; ++ i) {
   col_buffer_.push_back(new Blob<Dtype>());
+  bias_multiplier_flag_ = false;
   // }
 
   force_nd_im2col_ = conv_param.force_nd_im2col();
@@ -451,10 +452,19 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
     const Dtype* bias, int stream_id) {
+  const Dtype* temp_bias_multiplier = bias_multiplier_.gpu_data();
+  if (!bias_multiplier_flag_) {
+    CUDA_CHECK(cudaDeviceSynchronize());
+    bias_multiplier_flag_ = true;
+  }
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
-      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.gpu_data(),
+      out_spatial_dim_, 1, (Dtype)1., bias, temp_bias_multiplier,
       (Dtype)1., output,
       stream_id);
+  //caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
+  //    out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.gpu_data(),
+  //    (Dtype)1., output,
+  //    stream_id);
 }
 
 template <typename Dtype>
