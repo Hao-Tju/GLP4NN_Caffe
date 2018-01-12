@@ -455,9 +455,7 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
     const Dtype* bias, int stream_id) {
-  int index = (stream_id == -1) ? 0 : stream_id;
-  LOG(INFO) << "Index ....." << index;
-  const Dtype* temp_bias_multiplier = bias_multiplier_[index]->gpu_data();
+  const Dtype* temp_bias_multiplier = bias_multiplier_[(stream_id == -1) ? 0 : stream_id]->gpu_data();
   //if (!bias_multiplier_flag_) {
   //  CUDA_CHECK(cudaDeviceSynchronize());
   //  bias_multiplier_flag_ = true;
