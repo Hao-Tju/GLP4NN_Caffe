@@ -55,11 +55,12 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       if (this->bias_term_) {
         bias = this->blobs_[1]->mutable_gpu_data();
         bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
-        CUDA_CHECK(cudaDeviceSynchronize());
       }
+      //CUDA_CHECK(cudaDeviceSynchronize());
       for (int n = 0; n < this->num_; n += parallel_degree) {
-        for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+        for (int k_idx = 0; (k_idx < parallel_degree) and ((n + k_idx) < this->num_); ++ k_idx) {
           int idx = (n + k_idx);
+          //LOG(INFO) << "Current idx: " << idx;
           this->forward_gpu_gemm(bottom_data + idx * this->bottom_dim_, weight,
               top_data + idx * this->top_dim_, k_idx);
 
@@ -81,17 +82,17 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       if (this->bias_term_) {
         bias = this->blobs_[1]->mutable_gpu_data();
         bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
-        CUDA_CHECK(cudaDeviceSynchronize());
       }
+      //CUDA_CHECK(cudaDeviceSynchronize());
       for (int n = 0; n < this->num_; n += parallel_degree) {
-        for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+        for (int k_idx = 0; (k_idx < parallel_degree) and ((n + k_idx) < this->num_); ++ k_idx) {
           this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
               top_data + (n + k_idx) * this->top_dim_, k_idx);
         }
 
         if (this->bias_term_) {
           //const Dtype* bias = this->blobs_[1]->gpu_data();
-          for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+          for (int k_idx = 0; (k_idx < parallel_degree) and ((n + k_idx) < this->num_); ++ k_idx) {
             this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, bias_multiplier, k_idx);
           }
         }
@@ -108,15 +109,19 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       if (this->bias_term_) {
         bias = this->blobs_[1]->mutable_gpu_data();
         bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
-        CUDA_CHECK(cudaDeviceSynchronize());
       }
+      //CUDA_CHECK(cudaDeviceSynchronize());
       for (int n = 0; n < this->num_; n += parallel_degree) {
+        int temp_parallelDeg = parallel_degree;
+        if ((n + parallel_degree) > this->num_) {
+          temp_parallelDeg = this->num_ - n;
+        }
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
-            top_data + n * this->top_dim_, 'y', parallel_degree);
+            top_data + n * this->top_dim_, 'y', temp_parallelDeg);
 
         if (this->bias_term_) {
           //const Dtype* bias = this->blobs_[1]->gpu_data();
-          for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+          for (int k_idx = 0; (k_idx < parallel_degree) and ((n + k_idx) < this->num_); ++ k_idx) {
             this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, bias_multiplier, k_idx);
           }
         }
