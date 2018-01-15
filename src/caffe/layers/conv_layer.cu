@@ -77,6 +77,12 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         folder_flag = false;
       }
 #endif
+      Dtype* bias, *bias_multiplier;
+      if (this->bias_term_) {
+        bias = this->blobs_[1]->mutable_gpu_data();
+        bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
+        CUDA_CHECK(cudaDeviceSynchronize());
+      }
       for (int n = 0; n < this->num_; n += parallel_degree) {
         for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
           this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
@@ -84,10 +90,9 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
 
         if (this->bias_term_) {
-          const Dtype* bias = this->blobs_[1]->gpu_data();
-
+          //const Dtype* bias = this->blobs_[1]->gpu_data();
           for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
-            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, k_idx);
+            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, bias_multiplier, k_idx);
           }
         }
       }
@@ -99,15 +104,20 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         folder_flag = false;
       }
 #endif
+      Dtype* bias, *bias_multiplier;
+      if (this->bias_term_) {
+        bias = this->blobs_[1]->mutable_gpu_data();
+        bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
+        CUDA_CHECK(cudaDeviceSynchronize());
+      }
       for (int n = 0; n < this->num_; n += parallel_degree) {
         this->forward_gpu_gemm(bottom_data + n * this->bottom_dim_, weight,
             top_data + n * this->top_dim_, 'y', parallel_degree);
 
         if (this->bias_term_) {
-          const Dtype* bias = this->blobs_[1]->gpu_data();
-
+          //const Dtype* bias = this->blobs_[1]->gpu_data();
           for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
-            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, k_idx);
+            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, bias_multiplier, k_idx);
           }
         }
       }
