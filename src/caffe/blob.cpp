@@ -99,9 +99,9 @@ void Blob<Dtype>::set_cpu_data(Dtype* data) {
 }
 
 template <typename Dtype>
-const Dtype* Blob<Dtype>::gpu_data(int stream_id) const {
+const Dtype* Blob<Dtype>::gpu_data() const {
   CHECK(data_);
-  return (const Dtype*)data_->gpu_data(stream_id);
+  return (const Dtype*)data_->gpu_data();
 }
 
 template <typename Dtype>
@@ -154,42 +154,50 @@ Dtype* Blob<Dtype>::mutable_gpu_diff() {
 
 // Added by Hao Fu. 2018-01-15
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-const Dtype* cpu_data(int stream_id) const {
+template <typename Dtype>
+const Dtype* Blob<Dtype>::cpu_data(int stream_id) const {
   CHECK(data_);
   return (const Dtype*)data_->cpu_data(stream_id);
 }
 
-const Dtype* gpu_data(int stream_id) const {
+template <typename Dtype>
+const Dtype* Blob<Dtype>::gpu_data(int stream_id) const {
   CHECK(data_);
   return (const Dtype*)data_->gpu_data(stream_id);
 }
 
-const Dtype* cpu_diff(int stream_id) const {
+template <typename Dtype>
+const Dtype* Blob<Dtype>::cpu_diff(int stream_id) const {
   CHECK(diff_);
   return (const Dtype*)diff_->cpu_data(stream_id);
 }
 
-const Dtype* gpu_diff(int stream_id) const {
+template <typename Dtype>
+const Dtype* Blob<Dtype>::gpu_diff(int stream_id) const {
   CHECK(diff_);
   return (const Dtype*)diff_->gpu_data(stream_id);
 }
 
-Dtype* mutable_cpu_data(int stream_id) {
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_cpu_data(int stream_id) {
   CHECK(data_);
   return static_cast<Dtype*>(data_->mutable_cpu_data(stream_id));
 }
 
-Dtype* mutable_gpu_data(int stream_id) {
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_gpu_data(int stream_id) {
   CHECK(data_);
   return static_cast<Dtype*>(data_->mutable_gpu_data(stream_id));
 }
 
-Dtype* mutable_cpu_diff(int stream_id) {
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_cpu_diff(int stream_id) {
   CHECK(diff_);
   return static_cast<Dtype*>(diff_->mutable_cpu_data(stream_id));
 }
 
-Dtype* mutable_gpu_diff(int stream_id) {
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_gpu_diff(int stream_id) {
   CHECK(diff_);
   return static_cast<Dtype*>(diff_->mutable_gpu_data(stream_id));
 }

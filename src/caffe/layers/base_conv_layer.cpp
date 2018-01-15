@@ -462,14 +462,14 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* col_input,
-    const Dtype* weights, Dtype* output, bool skip_im2col = false) {
+void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
+    const Dtype* weights, Dtype* output, bool skip_im2col) {
   const Dtype* col_buff = input;
   if (!is_1x1_) {
     if (!skip_im2col) {
-      conv_im2col_gpu(input, col_buffer_.mutable_gpu_data());
+      conv_im2col_gpu(input, col_buffer_[0]->mutable_gpu_data());
     }
-    col_buff = col_buffer_.gpu_data();
+    col_buff = col_buffer_[0]->gpu_data();
   }
   for (int g = 0; g < group_; ++g) {
     caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /

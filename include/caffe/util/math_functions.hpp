@@ -183,14 +183,14 @@ inline void caffe_gpu_memset(const size_t N, const int alpha, void* X) {
 
 // Added by Hao Fu. 2018-01-15
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-void caffe_gpu_memcpy(const size_t N, const void *X, void *Y, HostDeviceCopy h_d_copy, int stream_id = -1);
+void caffe_gpu_memcpy(const size_t N, const void *X, void *Y, HostDeviceCopy h_d_copy, int stream_id);
 
-inline void caffe_gpu_memset(const size_t N, const int alpha, void* X, int stream_id = -1) {
+inline void caffe_gpu_memset(const size_t N, const int alpha, void* X, int stream_id) {
 #ifndef CPU_ONLY
   if (stream_id < 0) {
     CUDA_CHECK(cudaMemset(X, alpha, N));  // NOLINT(caffe/alt_fn)
   } else {
-    cuda_check(cudaMemsetAsync(X, alpha, N, GpuStreamPool::Get().cuda_stream(stream_id));
+    CUDA_CHECK(cudaMemsetAsync(X, alpha, N, GpuStreamPool::Get().cuda_stream(stream_id)));
   }
 #else
   NO_GPU;

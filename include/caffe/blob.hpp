@@ -233,14 +233,14 @@ class Blob {
 
   // Added by Hao Fu. 2018-01-15
   //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-  const Dtype* cpu_data(int stream_id = -1) const;
-  const Dtype* gpu_data(int stream_id = -1) const;
-  const Dtype* cpu_diff(int stream_id = -1) const;
-  const Dtype* gpu_diff(int stream_id = -1) const;
-  Dtype* mutable_cpu_data(int stream_id = -1);
-  Dtype* mutable_gpu_data(int stream_id = -1);
-  Dtype* mutable_cpu_diff(int stream_id = -1);
-  Dtype* mutable_gpu_diff(int stream_id = -1);
+  const Dtype* cpu_data(int stream_id) const;
+  const Dtype* gpu_data(int stream_id) const;
+  const Dtype* cpu_diff(int stream_id) const;
+  const Dtype* gpu_diff(int stream_id) const;
+  Dtype* mutable_cpu_data(int stream_id);
+  Dtype* mutable_gpu_data(int stream_id);
+  Dtype* mutable_cpu_diff(int stream_id);
+  Dtype* mutable_gpu_diff(int stream_id);
   //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   /// @brief Compute the sum of absolute values (L1 norm) of the data.

@@ -67,10 +67,10 @@ class SyncedMemory {
   void* mutable_gpu_data();
   // Added by Hao Fu. 2018-01-15
   //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  const void* cpu_data(int stream_id = -1);
-  void* mutable_cpu_data(int stream_id = -1);
-  const void* gpu_data(int stream_id = -1);
-  void* mutable_gpu_data(int stream_id = -1);
+  const void* cpu_data(int stream_id);
+  void* mutable_cpu_data(int stream_id);
+  const void* gpu_data(int stream_id);
+  void* mutable_gpu_data(int stream_id);
   //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   enum SyncedHead { UNINITIALIZED, HEAD_AT_CPU, HEAD_AT_GPU, SYNCED };
   SyncedHead head() { return head_; }
@@ -87,8 +87,8 @@ class SyncedMemory {
   void to_gpu();
   // Added by Hao Fu. 2018-01-15
   //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  void to_cpu(int stream_id = -1);
-  void to_gpu(int stream_id = -1);
+  void to_cpu(int stream_id);
+  void to_gpu(int stream_id);
   //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   void* cpu_ptr_;
   void* gpu_ptr_;

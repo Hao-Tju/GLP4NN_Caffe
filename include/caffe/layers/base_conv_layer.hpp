@@ -66,10 +66,10 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   void SetColBufferNum (int buffer_num);
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
-      Dtype* output, int stream_id = -1, bool skip_im2col = false);
+      Dtype* output, int stream_id, bool skip_im2col = false);
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
-      Dtype* output, char opt, int parallel_degree = -1, bool skip_im2col = false);
-  void forward_gpu_bias(Dtype* output, const Dtype* bias, const Dtype* bias_multiplier, int stream_id = -1);
+      Dtype* output, char opt, int parallel_degree, bool skip_im2col = false);
+  void forward_gpu_bias(Dtype* output, const Dtype* bias, const Dtype* bias_multiplier, int stream_id);
   //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
