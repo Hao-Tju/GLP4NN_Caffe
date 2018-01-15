@@ -219,7 +219,7 @@ class Blob {
   const Dtype* cpu_data() const;
   void set_cpu_data(Dtype* data);
   const int* gpu_shape() const;
-  const Dtype* gpu_data(int stream_id = -1) const;
+  const Dtype* gpu_data() const;
   void set_gpu_data(Dtype* data);
   const Dtype* cpu_diff() const;
   const Dtype* gpu_diff() const;
@@ -230,6 +230,18 @@ class Blob {
   void Update();
   void FromProto(const BlobProto& proto, bool reshape = true);
   void ToProto(BlobProto* proto, bool write_diff = false) const;
+
+  // Added by Hao Fu. 2018-01-15
+  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  const Dtype* cpu_data(int stream_id) const;
+  const Dtype* gpu_data(int stream_id) const;
+  const Dtype* cpu_diff(int stream_id) const;
+  const Dtype* gpu_diff(int stream_id) const;
+  Dtype* mutable_cpu_data(int stream_id);
+  Dtype* mutable_gpu_data(int stream_id);
+  Dtype* mutable_cpu_diff(int stream_id);
+  Dtype* mutable_gpu_diff(int stream_id);
+  //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   /// @brief Compute the sum of absolute values (L1 norm) of the data.
   Dtype asum_data() const;

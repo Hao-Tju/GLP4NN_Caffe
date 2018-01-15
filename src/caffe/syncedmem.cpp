@@ -63,7 +63,7 @@ inline void SyncedMemory::to_cpu() {
   }
 }
 
-inline void SyncedMemory::to_gpu(int stream_id) {
+inline void SyncedMemory::to_gpu() {
   check_device();
 #ifndef CPU_ONLY
   switch (head_) {
@@ -78,7 +78,7 @@ inline void SyncedMemory::to_gpu(int stream_id) {
       CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
       own_gpu_data_ = true;
     }
-    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_, stream_id);
+    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
     head_ = SYNCED;
     break;
   case HEAD_AT_GPU:
@@ -89,6 +89,99 @@ inline void SyncedMemory::to_gpu(int stream_id) {
   NO_GPU;
 #endif
 }
+
+// Added by Hao Fu. 2018-01-15
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+inline void SyncedMemory::to_cpu(int stream_id) {
+  check_device();
+  switch (head_) {
+  case UNINITIALIZED:
+    CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
+    caffe_memset(size_, 0, cpu_ptr_);
+    head_ = HEAD_AT_CPU;
+    own_cpu_data_ = true;
+    break;
+  case HEAD_AT_GPU:
+#ifndef CPU_ONLY
+    if (cpu_ptr_ == NULL) {
+      CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
+      own_cpu_data_ = true;
+    }
+    caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_, HostDeviceCopy::D2H, stream_id);
+    head_ = SYNCED;
+#else
+    NO_GPU;
+#endif
+    break;
+  case HEAD_AT_CPU:
+  case SYNCED:
+    break;
+  }
+}
+
+inline void SyncedMemory::to_gpu(int stream_id) {
+  check_device();
+#ifndef CPU_ONLY
+  switch (head_) {
+  case UNINITIALIZED:
+    CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+    caffe_gpu_memset(size_, 0, gpu_ptr_, stream_id);
+    head_ = HEAD_AT_GPU;
+    own_gpu_data_ = true;
+    break;
+  case HEAD_AT_CPU:
+    if (gpu_ptr_ == NULL) {
+      CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+      own_gpu_data_ = true;
+    }
+    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_, HostDeviceCopy::H2D, stream_id);
+    head_ = SYNCED;
+    break;
+  case HEAD_AT_GPU:
+  case SYNCED:
+    break;
+  }
+#else
+  NO_GPU;
+#endif
+}
+
+const void* SyncedMemory::cpu_data(int stream_id) {
+  check_device();
+  to_cpu(stream_id);
+  return (const void*)cpu_ptr_;
+}
+
+void* SyncedMemory::mutable_cpu_data(int stream_id) {
+  check_device();
+  to_cpu(stream_id);
+  head_ = HEAD_AT_CPU;
+  return cpu_ptr_;
+}
+
+const void* SyncedMemory::gpu_data(int stream_id) {
+  check_device();
+#ifndef CPU_ONLY
+  to_gpu(stream_id);
+  return (const void*)gpu_ptr_;
+#else
+  NO_GPU;
+  return NULL;
+#endif
+}
+
+void* SyncedMemory::mutable_gpu_data(int stream_id) {
+  check_device();
+#ifndef CPU_ONLY
+  to_gpu(stream_id);
+  head_ = HEAD_AT_GPU;
+  return gpu_ptr_;
+#else
+  NO_GPU;
+  return NULL;
+#endif
+}
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 const void* SyncedMemory::cpu_data() {
   check_device();
@@ -107,10 +200,10 @@ void SyncedMemory::set_cpu_data(void* data) {
   own_cpu_data_ = false;
 }
 
-const void* SyncedMemory::gpu_data(int stream_id) {
+const void* SyncedMemory::gpu_data() {
   check_device();
 #ifndef CPU_ONLY
-  to_gpu(stream_id);
+  to_gpu();
   return (const void*)gpu_ptr_;
 #else
   NO_GPU;

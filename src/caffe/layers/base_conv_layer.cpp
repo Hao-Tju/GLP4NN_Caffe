@@ -31,6 +31,7 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   */
   // for (int i = 0; i < this->parallel_degree_; ++ i) {
   col_buffer_.push_back(new Blob<Dtype>());
+  //bias_multiplier_.push_back(new Blob<Dtype>());
   // }
 
   force_nd_im2col_ = conv_param.force_nd_im2col();
@@ -360,7 +361,8 @@ void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
 
 #ifndef CPU_ONLY
 
-// Added by Hao Fu.
+// Added by Hao Fu. 2018-01-15
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
   if (col_buffer_.size() >= buffer_num) {
@@ -373,8 +375,8 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
       LOG(INFO) << "Begin col_buffer_ resizeing ..." << "[" << col_buffer_.size() << "->" << buffer_num << "].";
 
       int buffer_size = 1;
-      for (int i = 0; i < col_buffer_shape_.size(); ++ i) {
-        buffer_size *= col_buffer_shape_[i];
+      for (int buff_idx = 0; buff_idx < col_buffer_shape_.size(); ++ buff_idx) {
+        buffer_size *= col_buffer_shape_[buff_idx];
       }
 
       LOG(INFO) << "col_buffer_ overhead[" << former_size << "->" << buffer_num << "]: " << (buffer_num - col_buffer_.size()) * buffer_size << " bytes." << std::endl;
@@ -389,7 +391,9 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
     }
 
     col_buffer_.push_back(new Blob<Dtype>());
+    //bias_multiplier_.push_back(new Blob<Dtype>());
     col_buffer_[i]->Reshape(col_buffer_shape_);
+    //bias_multiplier_[i]->Reshape(vector<int>(1, out_spatial_dim_));
   }
 
   return ;
@@ -401,19 +405,16 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
   const Dtype* col_buff = input;
   if (!is_1x1_) {
     if (!skip_im2col) {
-      // Modified by Hao Fu.
       for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
         conv_im2col_gpu(input + k_idx * this->bottom_dim_, col_buffer_[k_idx]->mutable_gpu_data(), k_idx);
       }
     }
-    // Modified by Hao Fu.
     for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
       col_buff = col_buffer_[k_idx]->gpu_data();
     }
   }
   for (int g = 0; g < group_; ++g) {
     // TODO: Needed to consider the group_ argument.
-    // Modified by Hao Fu.
     for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
       caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
           group_, conv_out_spatial_dim_, kernel_dim_,
@@ -429,31 +430,61 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
   const Dtype* col_buff = input;
   if (!is_1x1_) {
     if (!skip_im2col) {
-      // Modified by Hao Fu.
-      // conv_im2col_gpu(input, col_buffer_.mutable_gpu_data(), stream_id);
-      conv_im2col_gpu(input, col_buffer_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(), stream_id);
+      //LOG(INFO) << "Col_buffer index = " << (stream_id == -1 ? 0 : stream_id) << ", #col_buffer = " << col_buffer_.size();
+      conv_im2col_gpu(input, col_buffer_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(stream_id), stream_id);
     }
-    // Modified by Hao Fu.
-    // col_buff = col_buffer_.gpu_data();
-    col_buff = col_buffer_[(stream_id == -1) ? 0 : stream_id]->gpu_data();
+    col_buff = col_buffer_[(stream_id == -1) ? 0 : stream_id]->gpu_data(stream_id);
+  }
+  //for (int g = 0; g < group_; ++g) {
+    // TODO: Needed to consider the group_ argument.
+  //  caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
+  //      group_, conv_out_spatial_dim_, kernel_dim_,
+  //      (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+  //      (Dtype)0., output + output_offset_ * g, stream_id);
+  caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
+      group_, conv_out_spatial_dim_, kernel_dim_,
+      (Dtype)1., weights, col_buff, (Dtype)0., output, stream_id);
+  //}
+}
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
+    const Dtype* bias, const Dtype* bias_multiplier, int stream_id) {
+  //const Dtype* temp_bias_multiplier = bias_multiplier_[(stream_id == -1) ? 0 : stream_id]->gpu_data(stream_id);
+  caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
+      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier,
+      (Dtype)1., output, stream_id);
+  //caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
+  //    out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.gpu_data(),
+  //    (Dtype)1., output,
+  //    stream_id);
+}
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
+    const Dtype* weights, Dtype* output, bool skip_im2col) {
+  const Dtype* col_buff = input;
+  if (!is_1x1_) {
+    if (!skip_im2col) {
+      conv_im2col_gpu(input, col_buffer_[0]->mutable_gpu_data());
+    }
+    col_buff = col_buffer_[0]->gpu_data();
   }
   for (int g = 0; g < group_; ++g) {
-    // TODO: Needed to consider the group_ argument.
-    // Modified by Hao Fu.
     caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
         group_, conv_out_spatial_dim_, kernel_dim_,
         (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
-        (Dtype)0., output + output_offset_ * g, stream_id);
+        (Dtype)0., output + output_offset_ * g);
   }
 }
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
-    const Dtype* bias, int stream_id) {
+    const Dtype* bias) {
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
       out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.gpu_data(),
-      (Dtype)1., output,
-      stream_id);
+      (Dtype)1., output);
 }
 
 template <typename Dtype>
@@ -469,7 +500,7 @@ void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
     caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
         conv_out_spatial_dim_, conv_out_channels_ / group_,
         (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
-        (Dtype)0., col_buff + col_offset_ * g, -1);
+        (Dtype)0., col_buff + col_offset_ * g);
   }
   if (!is_1x1_) {
     conv_col2im_gpu(col_buff, input);
@@ -491,7 +522,7 @@ void BaseConvolutionLayer<Dtype>::weight_gpu_gemm(const Dtype* input,
     caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, conv_out_channels_ / group_,
         kernel_dim_, conv_out_spatial_dim_,
         (Dtype)1., output + output_offset_ * g, col_buff + col_offset_ * g,
-        (Dtype)1., weights + weight_offset_ * g, -1);
+        (Dtype)1., weights + weight_offset_ * g);
   }
 }
 
@@ -499,7 +530,7 @@ template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_bias(Dtype* bias,
     const Dtype* input) {
   caffe_gpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-      input, bias_multiplier_.gpu_data(), 1., bias, -1);
+      input, bias_multiplier_.gpu_data(), 1., bias);
 }
 
 #endif  // !CPU_ONLY
