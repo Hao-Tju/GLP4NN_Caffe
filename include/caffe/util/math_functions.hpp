@@ -12,6 +12,8 @@
 
 namespace caffe {
 
+typedef enum CopyDirect {H2D, D2H} HostDeviceCopy;
+
 // Caffe gemm provides a simpler interface to the gemm functions, with the
 // limitation that the data has to be contiguous in memory.
 template <typename Dtype>
@@ -166,7 +168,7 @@ template <typename Dtype>
 void caffe_gpu_axpby(const int N, const Dtype alpha, const Dtype* X,
     const Dtype beta, Dtype* Y, int handle_id = -1);
 
-void caffe_gpu_memcpy(const size_t N, const void *X, void *Y, int stream_id = -1);
+void caffe_gpu_memcpy(const size_t N, const void *X, void *Y);
 
 template <typename Dtype>
 void caffe_gpu_set(const int N, const Dtype alpha, Dtype *X, int stream_id = -1);
@@ -178,6 +180,23 @@ inline void caffe_gpu_memset(const size_t N, const int alpha, void* X) {
   NO_GPU;
 #endif
 }
+
+// Added by Hao Fu. 2018-01-15
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+void caffe_gpu_memcpy(const size_t N, const void *X, void *Y, HostDeviceCopy h_d_copy, int stream_id = -1);
+
+inline void caffe_gpu_memset(const size_t N, const int alpha, void* X, int stream_id = -1) {
+#ifndef CPU_ONLY
+  if (stream_id < 0) {
+    CUDA_CHECK(cudaMemset(X, alpha, N));  // NOLINT(caffe/alt_fn)
+  } else {
+    cuda_check(cudaMemsetAsync(X, alpha, N, GpuStreamPool::Get().cuda_stream(stream_id));
+  }
+#else
+  NO_GPU;
+#endif
+}
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 template <typename Dtype>
 void caffe_gpu_add_scalar(const int N, const Dtype alpha, Dtype *X, int stream_id = -1);

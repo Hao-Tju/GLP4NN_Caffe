@@ -63,13 +63,18 @@ class BaseConvolutionLayer : public Layer<Dtype> {
 
 #ifndef CPU_ONLY
   // Added by Hao Fu.
+  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   void SetColBufferNum (int buffer_num);
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
+      Dtype* output, int stream_id = -1, bool skip_im2col = false);
+  void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
       Dtype* output, char opt, int parallel_degree = -1, bool skip_im2col = false);
+  void forward_gpu_bias(Dtype* output, const Dtype* bias, const Dtype* bias_multiplier, int stream_id = -1);
+  //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
-      Dtype* output, int stream_id = -1, bool skip_im2col = false);
-  void forward_gpu_bias(Dtype* output, const Dtype* bias, int stream_id = -1);
+      Dtype* output, bool skip_im2col = false);
+  void forward_gpu_bias(Dtype* output, const Dtype* bias);
   void backward_gpu_gemm(const Dtype* input, const Dtype* weights,
       Dtype* col_output);
   void weight_gpu_gemm(const Dtype* col_input, const Dtype* output, Dtype*
@@ -104,7 +109,7 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   const vector<int>* bottom_shape_;
 
   // Added by Hao Fu. 2018-01-12
-  bool bias_multiplier_flag_;
+  //vector<Blob<Dtype>*> bias_multiplier_;
 
   int num_spatial_axes_;
   int bottom_dim_;
@@ -200,8 +205,7 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   // Modified by Hao Fu.
   // Blob<Dtype> col_buffer_;
   vector<Blob<Dtype>*> col_buffer_;
-  //Blob<Dtype> bias_multiplier_;
-  vector<Blob<Dtype>*> bias_multiplier_;
+  Blob<Dtype> bias_multiplier_;
 };
 
 }  // namespace caffe

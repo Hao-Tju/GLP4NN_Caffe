@@ -152,6 +152,49 @@ Dtype* Blob<Dtype>::mutable_gpu_diff() {
   return static_cast<Dtype*>(diff_->mutable_gpu_data());
 }
 
+// Added by Hao Fu. 2018-01-15
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+const Dtype* cpu_data(int stream_id) const {
+  CHECK(data_);
+  return (const Dtype*)data_->cpu_data(stream_id);
+}
+
+const Dtype* gpu_data(int stream_id) const {
+  CHECK(data_);
+  return (const Dtype*)data_->gpu_data(stream_id);
+}
+
+const Dtype* cpu_diff(int stream_id) const {
+  CHECK(diff_);
+  return (const Dtype*)diff_->cpu_data(stream_id);
+}
+
+const Dtype* gpu_diff(int stream_id) const {
+  CHECK(diff_);
+  return (const Dtype*)diff_->gpu_data(stream_id);
+}
+
+Dtype* mutable_cpu_data(int stream_id) {
+  CHECK(data_);
+  return static_cast<Dtype*>(data_->mutable_cpu_data(stream_id));
+}
+
+Dtype* mutable_gpu_data(int stream_id) {
+  CHECK(data_);
+  return static_cast<Dtype*>(data_->mutable_gpu_data(stream_id));
+}
+
+Dtype* mutable_cpu_diff(int stream_id) {
+  CHECK(diff_);
+  return static_cast<Dtype*>(diff_->mutable_cpu_data(stream_id));
+}
+
+Dtype* mutable_gpu_diff(int stream_id) {
+  CHECK(diff_);
+  return static_cast<Dtype*>(diff_->mutable_gpu_data(stream_id));
+}
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 template <typename Dtype>
 void Blob<Dtype>::ShareData(const Blob& other) {
   CHECK_EQ(count_, other.count());

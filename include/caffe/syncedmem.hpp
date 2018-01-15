@@ -61,10 +61,17 @@ class SyncedMemory {
   ~SyncedMemory();
   const void* cpu_data();
   void set_cpu_data(void* data);
-  const void* gpu_data(int stream_id = -1);
+  const void* gpu_data();
   void set_gpu_data(void* data);
   void* mutable_cpu_data();
   void* mutable_gpu_data();
+  // Added by Hao Fu. 2018-01-15
+  //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  const void* cpu_data(int stream_id = -1);
+  void* mutable_cpu_data(int stream_id = -1);
+  const void* gpu_data(int stream_id = -1);
+  void* mutable_gpu_data(int stream_id = -1);
+  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   enum SyncedHead { UNINITIALIZED, HEAD_AT_CPU, HEAD_AT_GPU, SYNCED };
   SyncedHead head() { return head_; }
   size_t size() { return size_; }
@@ -77,7 +84,12 @@ class SyncedMemory {
   void check_device();
 
   void to_cpu();
+  void to_gpu();
+  // Added by Hao Fu. 2018-01-15
+  //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  void to_cpu(int stream_id = -1);
   void to_gpu(int stream_id = -1);
+  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   void* cpu_ptr_;
   void* gpu_ptr_;
   size_t size_;

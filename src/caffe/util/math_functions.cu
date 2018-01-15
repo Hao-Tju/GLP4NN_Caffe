@@ -87,10 +87,30 @@ void caffe_gpu_axpy<double>(const int N, const double alpha, const double* X,
 
 void caffe_gpu_memcpy(const size_t N, const void* X, void* Y, int stream_id) {
   if (X != Y) {
-    if (stream_id <= 0) {
-      CUDA_CHECK(cudaMemcpy(Y, X, N, cudaMemcpyDefault));  // NOLINT(caffe/alt_fn)
-    } else { // Added by Hao. Update with stream supported.
-      CUDA_CHECK(cudaMemcpyAsync(Y, X, N, cudaMemcpyDefault, GpuStreamPool::Get().cuda_stream(stream_id)));
+    CUDA_CHECK(cudaMemcpy(Y, X, N, cudaMemcpyDefault));  // NOLINT(caffe/alt_fn)
+  }
+}
+
+// Added by Hao Fu. 2018-01-15
+void caffe_gpu_memcpy(const size_t N, const void* X, void* Y, HostDeviceCopy h_d_copy, int stream_id) {
+  if (X != Y) {
+    cudaMemcpyKind h_d_kind = cudaMemcpyDefault;
+    switch (h_d_copy) {
+      case HostDeviceCopy::H2D:
+        h_d_kind = cudaMemcpyHostToDevice;
+        break;
+      case HostDeviceCopy::D2H:
+        h_d_kind = cudaMemcpyDeviceToHost;
+        break;
+      default:
+        h_d_kind = cudaMemcpyDefault;
+        break;
+    }
+
+    if (stream_id < 0) {
+      CUDA_CHECK(cudaMemcpy(Y, X, N, h_d_kind));
+    } else {
+      CUDA_CHECK(cudaMemcpyAsync(Y, X, N, h_d_kind, GpuStreamPool::Get().cuda_stream(stream_id)));
     }
   }
 }
