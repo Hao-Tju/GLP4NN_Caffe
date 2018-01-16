@@ -126,7 +126,7 @@ layer {
     num_output: 256
     pad: 2
     kernel_size: 5
-    group: 2
+#    group: 2
     engine: CAFFE
     weight_filler {
       type: "gaussian"
@@ -217,7 +217,7 @@ layer {
     num_output: 384
     pad: 1
     kernel_size: 3
-    group: 2
+#    group: 2
     engine: CAFFE
     weight_filler {
       type: "gaussian"
@@ -252,7 +252,7 @@ layer {
     num_output: 256
     pad: 1
     kernel_size: 3
-    group: 2
+#    group: 2
     engine: CAFFE
     weight_filler {
       type: "gaussian"
