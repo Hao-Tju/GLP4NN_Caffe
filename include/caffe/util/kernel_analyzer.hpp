@@ -51,7 +51,9 @@ namespace caffe {
    * @class KernelAnalyzer
    * @brief Class used to analyze kernel runtime configurations and
    *        figure out the maximum kernels that can be launched in
-   *        parallel.
+   *        parallel. Each thread (which is assumed that each thread
+   *        is used to manage a different GPU device) has its own
+   *        instance of KernelAnalyzer.
    */
   class KernelAnalyzer {
     public:
@@ -145,7 +147,7 @@ namespace caffe {
       map<string, int> pdegree_map_;
 
       int device_id_; /**< ID of the GPU device that kernels run on. */
-      //int *k_num_bnd_; /**< Array for recording bounds of degree of parallelism. */
+      /**< Array for recording bounds of degree of parallelism. */
       map<string, vector<int>> k_num_bnd_;
       cudaEvent_t start_, end_;
 
