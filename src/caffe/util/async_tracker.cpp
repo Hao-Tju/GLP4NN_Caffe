@@ -17,15 +17,12 @@
 
 #define NS2MS 1000000.0
 
-#define CHECK_KERNEL_RECORD(record, flag)     {     \
+#define CHECK_KERNEL_RECORD(record)     {     \
   if (record->start == 0) {                   \
-    LOG(INFO) << "WARNING! Cannot record the START timestamp of kernel: " << record->name;    \
-    flag = false;                                   \
+    LOG(FATAL) << "WARNING! Cannot record the START timestamp of kernel: " << record->name;    \
   } else if (record->end == 0) {              \
-    LOG(INFO) << "WARNING! Cannot record the END timestamp of kernel: " << record->name;      \
-    flag = false;                                   \
+    LOG(FATAL) << "WARNING! Cannot record the END timestamp of kernel: " << record->name;      \
   }                                           \
-  flag = true;                                      \
 }
 
 #define MIN(first, second) (first < second ? first : second)
@@ -45,9 +42,11 @@ namespace caffe {
   vector<Kernel_t>* AsyncResTracker::kernels_vec_ptr_ = NULL;
   //map<string, vector<Kernel_t> >* AsyncResTracker::name_kernel_ptr_ = NULL;
   vector<Timestamp_t>* AsyncResTracker::timestamp_vec_ptr_ = NULL;
+  // Mutex used to guard the access to the asynchronous resource tracker.
   boost::mutex AsyncResTracker::profiler_mutex_;
   PROFTYPE AsyncResTracker::curr_prof_type_ = PROFTYPE::DEFAULT;
 
+  // Global static asynchronous resource tracker.
   static AsyncResTracker* async_res_tracker_ = NULL;
 
   string str_tolower(string str) {
@@ -138,8 +137,7 @@ namespace caffe {
   }
 
   AsyncResTracker::~AsyncResTracker() {
-    this->kernel_counter_ = 0;
-
+    // Empty the information vector of kernels recorded and timestamps of them.
     if (!kernels_vec_.empty()) {
       this->kernels_vec_.clear();
     }
@@ -147,20 +145,13 @@ namespace caffe {
       this->timestamp_vec_.clear();
     }
 
+    // Empty the seg_tree_ which is used to calculate the idle time of the GPU device.
     if (seg_tree_ != NULL) {
       delete[] this->seg_tree_;
     }
     this->next_node_idx_ = 0;
     this->tree_nodes_count_ = 0;
     this->seg_tree_ = NULL;
-
-    if (idle_time_stream_.is_open()) {
-      this->idle_time_stream_.close();
-    }
-
-    if (kernel_stream_.is_open()) {
-      this->kernel_stream_.close();
-    }
   }
 
   void AsyncResTracker::InitAsyncResTracker(PROFTYPE prof_type) {
@@ -169,29 +160,25 @@ namespace caffe {
     profiler_flag_ = false;
 
     // Record current profiling type.
-    //static PROFTYPE curr_prof_type = PROFTYPE::DEFAULT;
     // Enable tracking kernel information.
-    if (prof_type == CONCURRENT) {
-      if (curr_prof_type_ == SERIAL) {
-        CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL),
-            "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
-      }
+    if ((prof_type == CONCURRENT) and (curr_prof_type_ != CONCURRENT)) {
+      CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
-    } else {
-      if (curr_prof_type_ == CONCURRENT) {
-        CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-            "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
-      }
+    } else if ((curr_prof_type_ == CONCURRENT) and (prof_type != CONCURRENT)) {
+      CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
+    } else {
+      LOG(FATAL) << "Undefined operation!";
     }
     curr_prof_type_ = prof_type;
 
     static bool config_flag = true;
     if (config_flag) {
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_OVERHEAD), "cuptiActivityEnable CUPTI_ACTIVITY_KIND_OVERHEAD");
-      // cupti_act_kind_ = CUPTI_ACTIVITY_KIND_KERNEL;
 
       // Register functions for requesting buffer or processing buffer.
       CHECK_CUPTI_ERROR(cuptiActivityRegisterCallbacks(BufferRequested, BufferCompleted), "cuptiActivityRegisterCallbacks");
@@ -201,6 +188,9 @@ namespace caffe {
       CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivityGetAttribute");
       bufferSize *= 2;
       CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
+      CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE_CDP, &bufferValSize, &bufferSize), "cuptiActivityGetAttribut");
+      bufferSize *= 2;
+      CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE_CDP, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
       CHECK_CUPTI_ERROR(cuptiActivityGetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT, &bufferValSize, &bufferSize), "cuptiActivityGetAttribute");
       bufferSize *= 2;
       CHECK_CUPTI_ERROR(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT, &bufferValSize, &bufferSize), "cuptiActivitySetAttribute");
@@ -213,22 +203,18 @@ namespace caffe {
 
   void AsyncResTracker::ProfilerStart(int device_id) {
     // Initialze the device needed to be profiled.
-    /*
-    if (device_id < 0) {
-      CHECK_CUDA_ERROR(cudaGetDevice(&device_id), "cudaGetDevice")
-    }
-    */
     profiling_device_id_ = device_id;
 
     // Reset kernel counter to 0;
     static_kernel_counter_ = 0;
+    // Initialize the launch overhead to 0.
+    kernel_launch_overhead_ = 0;
+
     // Initialize the vector storing kernels information.
     kernels_vec_ptr_ = &this->kernels_vec_;
     if (!kernels_vec_ptr_->empty()) {
       kernels_vec_ptr_->clear();
     }
-    // Initialize the launch overhead to 0.
-    this->kernel_launch_overhead_ = 0;
     // Initialize the vector that store the kernels' timestamp to a object-specific value.
     timestamp_vec_ptr_ = &this->timestamp_vec_;
     if (!timestamp_vec_ptr_->empty()) {
@@ -240,7 +226,7 @@ namespace caffe {
 
     // Enable the GPU profiler after all preparations have been done.
     profiler_flag_ = true;
-    LOG(INFO) << "START Profiling!";
+    LOG(INFO) << "START Profiling on Device " << profiling_device_id_ << " !";
   }
 
   void AsyncResTracker::ProfilerStop() {
@@ -253,7 +239,7 @@ namespace caffe {
     this->kernel_counter_ = static_kernel_counter_;
     // Stop the profiling.
     profiler_flag_ = false;
-    LOG(INFO) << "STOP Profiling! TOTAL " << this->kernel_counter_ << " kernels are recorded!";
+    LOG(INFO) << "STOP Profiling on Device " << profiling_device_id_ <<  "! TOTAL " << this->kernel_counter_ << " kernels are recorded!";
   }
 
   void CUPTIAPI AsyncResTracker::BufferRequested(uint8_t **buffer, size_t *size, size_t *maxNumRecords) {
@@ -320,8 +306,8 @@ namespace caffe {
     if ((record->kind == CUPTI_ACTIVITY_KIND_KERNEL) or
         (record->kind == CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL)) {
       CUpti_ActivityKernel3 *kernel_record = reinterpret_cast<CUpti_ActivityKernel3 *>(record);
-      bool flag = false;
-      CHECK_KERNEL_RECORD(kernel_record, flag);
+      // Check whether the kernel record is valid.
+      CHECK_KERNEL_RECORD(kernel_record);
       if (kernel_record->deviceId != profiling_device_id_) {
         LOG(INFO) << "Kernel " << kernel_record->name << " @(deviceID = " << kernel_record->deviceId << ") is discarded. Current device is " << profiling_device_id_ << ".";
 
@@ -336,6 +322,7 @@ namespace caffe {
       uint64_t kernel_duration = 0;
       Timestamp_t timestamp;
 
+      // Analyze the information of kernels recorded.
       kernel.name = timestamp.name = kernel_record->name;
       kernel.gridX = kernel_record->gridX;
       kernel.gridY = kernel_record->gridY;
@@ -343,24 +330,16 @@ namespace caffe {
       kernel.blockX = kernel_record->blockX;
       kernel.blockY = kernel_record->blockY;
       kernel.blockZ = kernel_record->blockZ;
-
       kernel.regPerThread = kernel_record->registersPerThread;
       kernel.smPerBlock = kernel_record->staticSharedMemory + kernel_record->dynamicSharedMemory;
-
-      if (!flag) {
-        kernel_duration = 0;
-
-        return ;
-      }
-
       kernel_duration = kernel_record->end - kernel_record->start;
+
       int pos = FindKernelConfig(kernels_vec_ptr_, kernel);
-      if (pos == -1) {
+      if (pos == -1) { // For the first time of recording a kernel.
         kernel.invocations = 1;
         kernel.duration = kernel_duration;
         kernels_vec_ptr_->push_back(kernel);
-        //std::cout << "New kernel with name " << kernel.name << " (total " << kernels_vec_ptr_->size() << " kernels)." << std::endl;
-      } else {
+      } else { // Update the information of a kernel recorded already.
         kernels_vec_ptr_->at(pos).invocations ++;
         kernels_vec_ptr_->at(pos).duration += kernel_duration;
         kernels_vec_ptr_->at(pos).average_exec_time = std::ceil(kernels_vec_ptr_->at(pos).duration /
@@ -414,12 +393,6 @@ namespace caffe {
 
     unsigned int kernels_per_iter = timestamp_vec_.size() / min_invocations;
     // To avoid additional kernel recorded.
-    /*
-    for (auto kernel_rec : kernels_vec_) {
-      unsigned int temp_kernels_per_iter = timestamp_vec_.size() / kernel_rec.invocations;
-      kernels_per_iter = MAX(temp_kernels_per_iter, kernels_per_iter);
-    }
-    */
 
     uint64_t total_launch_overhead = 0;
     for (int i = 0; i < min_invocations; ++ i) {
@@ -481,14 +454,13 @@ namespace caffe {
     }
 
     int mid_val = (start_val + end_val) >> 1;
-    int mid = (start + end) >> 1;
     if (end <= mid_val) {
       TreeInsert(seg_tree, seg_tree[current_node].left, start, end);
-    } else if (start > mid_val) {
+    } else if (start >= mid_val) {
       TreeInsert(seg_tree, seg_tree[current_node].right, start, end);
     } else {
-      TreeInsert(seg_tree, seg_tree[current_node].left, start, mid);
-      TreeInsert(seg_tree, seg_tree[current_node].right, mid, end);
+      TreeInsert(seg_tree, seg_tree[current_node].left, start, mid_val);
+      TreeInsert(seg_tree, seg_tree[current_node].right, mid_val, end);
     }
 
     return ;
@@ -500,13 +472,13 @@ namespace caffe {
           - time_vec[seg_tree[node_id].start]);
     }
 
-    if ((seg_tree[node_id].left == 0) &&
-        (seg_tree[node_id].right == 0)) {
-      return 0;
+    uint64_t left_value = 0, right_value = 0;
+    if (seg_tree[node_id].left != 0) {
+      left_value = TreeTraverse(seg_tree, time_vec, seg_tree[node_id].left);
     }
-
-    uint64_t left_value = TreeTraverse(seg_tree, time_vec, seg_tree[node_id].left);
-    uint64_t right_value = TreeTraverse(seg_tree, time_vec, seg_tree[node_id].right);
+    if (seg_tree[node_id].right != 0) {
+      right_value = TreeTraverse(seg_tree, time_vec, seg_tree[node_id].right);
+    }
 
     return (left_value + right_value);
   }
@@ -517,19 +489,6 @@ namespace caffe {
       return ;
     }
 
-    /*
-    if (!idle_time_stream_.is_open()) {
-      stringstream log_filename_ss;
-      log_filename_ss << "./LOG/occ/" << layer_name << "_ParallelDeg_" << parallel_degree << ".occ";
-      idle_time_stream_.open(log_filename_ss.str().c_str(), std::ios::app | std::ios::out);
-      if (!idle_time_stream_.is_open()) {
-        LOG(FATAL) << "Failed to open LOG file: " << log_filename_ss.str() << ". Please check it!";
-      }
-      idle_time_stream_ << "Layer Name,Parallel Degree,Occupancy Ratio,Total ExecTime,Total IdleTime" << std::endl;
-      log_filename_ss.str("");
-      log_filename_ss.clear();
-    }
-    */
     vector<uint64_t> time_vec;
 
     // Remove redundant timestamp from original record.
@@ -580,7 +539,6 @@ namespace caffe {
 
     double occupancy_ratio = static_cast<double>(busy_time) / static_cast<double>(total_time);
     LOG(INFO) << "Occupancy ratio of layer " << layer_name << " (#streams = " << parallel_degree << ") is " << occupancy_ratio << ". IDLE = " << idle_time << ", TOTAL=" << total_time;
-    // idle_time_stream_ << layer_name << "," << parallel_degree << "," << occupancy_ratio << "," << total_time << "," << idle_time << std::endl;
 
     stringstream filename_ss, content_ss;
     filename_ss << layer_name << "_ParallelDeg_" << parallel_degree << "_occ";

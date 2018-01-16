@@ -402,15 +402,20 @@ void BaseConvolutionLayer<Dtype>::SetColBufferNum (int buffer_num) {
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     const Dtype* weights, Dtype* output, char opt, int parallel_degree, bool skip_im2col) {
-  const Dtype* col_buff = input;
+  //const Dtype* col_buff = input;
+  vector<const Dtype*> col_buff_vector;
+  for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
+    col_buff_vector.push_back(input + k_idx * bottom_dim_);
+  }
   if (!is_1x1_) {
     if (!skip_im2col) {
       for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
-        conv_im2col_gpu(input + k_idx * this->bottom_dim_, col_buffer_[k_idx]->mutable_gpu_data(), k_idx);
+        conv_im2col_gpu(input + k_idx * bottom_dim_, col_buffer_[k_idx]->mutable_gpu_data(k_idx), k_idx);
       }
     }
     for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
-      col_buff = col_buffer_[k_idx]->gpu_data();
+      //col_buff = col_buffer_[k_idx]->gpu_data();
+      col_buff_vector[k_idx] = col_buffer_[k_idx]->gpu_data(k_idx);
     }
   }
   for (int g = 0; g < group_; ++g) {
@@ -418,8 +423,8 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     for (int k_idx = 0; k_idx < parallel_degree; ++ k_idx) {
       caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
           group_, conv_out_spatial_dim_, kernel_dim_,
-          (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
-          (Dtype)0., output + k_idx * this->top_dim_ + output_offset_ * g, k_idx);
+          (Dtype)1., weights + weight_offset_ * g, col_buff_vector[k_idx] + col_offset_ * g,
+          (Dtype)0., output + k_idx * top_dim_ + output_offset_ * g, k_idx);
     }
   }
 }
@@ -435,16 +440,13 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
     }
     col_buff = col_buffer_[(stream_id == -1) ? 0 : stream_id]->gpu_data(stream_id);
   }
-  //for (int g = 0; g < group_; ++g) {
+  for (int g = 0; g < group_; ++g) {
     // TODO: Needed to consider the group_ argument.
-  //  caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
-  //      group_, conv_out_spatial_dim_, kernel_dim_,
-  //      (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
-  //      (Dtype)0., output + output_offset_ * g, stream_id);
-  caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
-      group_, conv_out_spatial_dim_, kernel_dim_,
-      (Dtype)1., weights, col_buff, (Dtype)0., output, stream_id);
-  //}
+    caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
+        group_, conv_out_spatial_dim_, kernel_dim_,
+        (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)0., output + output_offset_ * g, stream_id);
+  }
 }
 
 template <typename Dtype>

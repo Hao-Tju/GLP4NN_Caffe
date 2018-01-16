@@ -15,8 +15,10 @@ namespace caffe {
 template <typename Dtype>
 void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
+  // Get the weight data.
   const Dtype* weight = this->blobs_[0]->gpu_data();
   for (int i = 0; i < bottom.size(); ++i) {
+    // Get the GPU pointer of bottom data blob and target top data blob.
     const Dtype* bottom_data = bottom[i]->gpu_data();
     Dtype* top_data = top[i]->mutable_gpu_data();
 
@@ -29,11 +31,11 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       this->SetColBufferNum(parallel_degree);
     }
 #endif
-//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     if (parallel_degree < FLAGS_parallelDeg) {
       parallel_degree = FLAGS_parallelDeg;
     }
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     if (FLAGS_gemmOpt == 0) {
 #ifdef USE_PROF
       if (folder_flag) {
@@ -41,7 +43,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         InfoLog::Get().SetFolder("Unoptimized");
         folder_flag = false;
       }
-//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #else
       static bool gpu_pool_flag = false;
       this->SetColBufferNum(FLAGS_parallelDeg);
@@ -49,9 +51,9 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         gpu_pool_flag = true;
         GpuStreamPool::Get().SetPoolSize(parallel_degree);
       }
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #endif
-      Dtype* bias, *bias_multiplier;
+      Dtype *bias, *bias_multiplier;
       if (this->bias_term_) {
         bias = this->blobs_[1]->mutable_gpu_data();
         bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
@@ -59,14 +61,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       //CUDA_CHECK(cudaDeviceSynchronize());
       for (int n = 0; n < this->num_; n += parallel_degree) {
         for (int k_idx = 0; (k_idx < parallel_degree) and ((n + k_idx) < this->num_); ++ k_idx) {
-          int idx = (n + k_idx);
-          //LOG(INFO) << "Current idx: " << idx;
-          this->forward_gpu_gemm(bottom_data + idx * this->bottom_dim_, weight,
-              top_data + idx * this->top_dim_, k_idx);
+          //LOG(INFO) << "Current idx: " << (n + k_idx);
+          this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
+              top_data + (n + k_idx) * this->top_dim_, k_idx);
 
           if (this->bias_term_) {
             //const Dtype* bias = this->blobs_[1]->gpu_data();
-            this->forward_gpu_bias(top_data + idx * this->top_dim_, bias, bias_multiplier, k_idx);
+            this->forward_gpu_bias(top_data + (n + k_idx) * this->top_dim_, bias, bias_multiplier, k_idx);
           }
         }
       }
@@ -78,7 +79,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         folder_flag = false;
       }
 #endif
-      Dtype* bias, *bias_multiplier;
+      Dtype *bias, *bias_multiplier;
       if (this->bias_term_) {
         bias = this->blobs_[1]->mutable_gpu_data();
         bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
