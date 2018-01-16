@@ -41,7 +41,7 @@
     LOG(FATAL) << "GLP_ETMLIM! The search was prematurely terminated, because the time limit has been " <<\
                   "exceeded. @" << func;                                                                  \
   } else if (val == GLP_ESTOP) {                                                                          \
-    LOG(FATAL) << "GLP_ESTOP! The search was prematurely terminated by application. @" << func;           \
+    LOG(INFO) << "GLP_ESTOP! The search was prematurely terminated by application. @" << func;            \
     LOG(FATAL) << "This code may appear only if the advanced solver interface is used.";                  \
   }                                                                                                       \
 }
@@ -78,6 +78,7 @@ namespace caffe {
 
   KernelAnalyzer::KernelAnalyzer() {
     this->device_id_ = -1;
+    this->current_key_str_ = "";
 
     if (!pdegree_map_.empty()) {
       pdegree_map_.clear();
@@ -85,7 +86,9 @@ namespace caffe {
 
     //CHECK_CUDA_ERROR(cudaEventCreate(&this->start_), "cudaEventCreate");
     //CHECK_CUDA_ERROR(cudaEventCreate(&this->end_), "cudaEventCreate");
-    //this->k_num_bnd_ = NULL;
+    if (!k_num_bnd_.empty()) {
+      k_num_bnd_.clear();
+    }
     // Added to control the concurrent profiling.
     if (!conc_profiling_flag.get()) {
       conc_profiling_flag.reset(new unsigned int(1));
@@ -109,9 +112,10 @@ namespace caffe {
 
   void KernelAnalyzer::AnalyzerStart(const string layer_name, const string loop_label, int &parallel_degree) {
     if (this->device_id_ < 0) {
-      CHECK_CUDA_ERROR(cudaGetDevice(&this->device_id_), "cudaGetDevice");
+      //CHECK_CUDA_ERROR(cudaGetDevice(&this->device_id_), "cudaGetDevice");
+      this->device_id_ = Caffe::Get().GetDeviceID();
     }
-    //LOG(INFO) << "Current DEVICE@" << this->device_id_ << ".";
+    LOG(INFO) << "Current DEVICE@" << this->device_id_ << ".";
 
     stringstream temp_ss;
     temp_ss << layer_name << "_" << loop_label << "_" << this->device_id_;
@@ -129,6 +133,7 @@ namespace caffe {
       //parallel_degree = pdegree_map_[current_key_str_].max_val;
       parallel_degree = pdegree_map_[current_key_str_];
       if (*(conc_profiling_flag.get()) <= pdegree_map_.size()) {
+        //(*(conc_profiling_flag.get())) ++;
         AsyncResTracker::Get().ProfilerLock();
         AsyncResTracker::Get().InitAsyncResTracker(PROFTYPE::CONCURRENT);
         AsyncResTracker::Get().ProfilerStart(this->device_id_);
@@ -157,7 +162,7 @@ namespace caffe {
       pdegree_map_[current_key_str_] = ParallelDegreeLB(kernel_launch_overhead, kernels, this->device_id_);
 
       //LOG(INFO) << current_key_str_ << ": max=" << pdegree_map_[current_key_str_].max_val << ", min=" << pdegree_map_[current_key_str_].min_val;
-      //GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_].max_val);
+      // Update the size of GpuStreamPool.
       GpuStreamPool::Get().SetPoolSize(pdegree_map_[current_key_str_]);
 
       double analyzer_overhead = analyzer_timer.MicroSeconds();
@@ -181,14 +186,14 @@ namespace caffe {
 
       LOG(INFO) << "Asynchronous resource tracker stop!";
     } else {
-      if (*(conc_profiling_flag.get()) <= pdegree_map_.size()) {
+      if ((*(conc_profiling_flag.get())) <= pdegree_map_.size()) {
         AsyncResTracker::Get().ProfilerStop();
         AsyncResTracker::Get().TimestampLog(current_key_str_ + "_PD");
         AsyncResTracker::Get().ComputeOccupancyRatio(current_key_str_ + "_PD", pdegree_map_[current_key_str_]);
         AsyncResTracker::Get().TempBufRelease();
         AsyncResTracker::Get().ProfilerUnlock();
 
-        (*conc_profiling_flag) ++;
+        (*(conc_profiling_flag.get())) ++;
       }
       sync<<<1,1>>>();
     }

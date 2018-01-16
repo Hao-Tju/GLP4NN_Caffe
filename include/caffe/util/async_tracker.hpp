@@ -116,7 +116,7 @@ namespace caffe {
       /**
        * @brief   Initialize CUPTI settings of a class object.
        */
-      static void InitAsyncResTracker(PROFTYPE prof_type = SERIAL);
+      static void InitAsyncResTracker(PROFTYPE prof_type = DEFAULT);
 
       /**
        * @brief   ProfilerLock function.
@@ -199,9 +199,11 @@ namespace caffe {
        * @brief   GPU device setting function.
        * @param[in] device_id       New device needed to be profiled.
        */
+      /*
       static void SetDevice(int device_id) {
         profiling_device_id_ = device_id;
       }
+      */
 
       /**
        * @brief   Get the vector of kernels recorded.
@@ -273,7 +275,7 @@ namespace caffe {
       // Member variable used to identify whether start profiling.
       static bool profiler_flag_;
       // Record kind of the current activity profiled.
-      static CUpti_ActivityKind cupti_act_kind_;
+      // static CUpti_ActivityKind cupti_act_kind_;
 
       // Static start timestamp of the profiling process.
       static uint64_t static_startTimestamp_;
@@ -290,7 +292,7 @@ namespace caffe {
       // Member variable used to store kernel timestamps.
       vector<Timestamp_t> timestamp_vec_;
 
-      // The current profiling type: CONCURRENT or SERIAL.
+      // The current profiling type: DEFAULT, SERIAL and CONCURRENT (valid values).
       static PROFTYPE curr_prof_type_;
 
       // Member variable used to represent the next available tree node ID.
@@ -301,11 +303,6 @@ namespace caffe {
       unsigned int tree_nodes_count_;
       // Member variable used to point to the root node of segment tree seg_tree_.
       SegTree_ptr seg_tree_;
-
-      // File stream used to write idle interval in the total execution time.
-      fstream idle_time_stream_;
-      // File stream used to write the kernel profiling information.
-      fstream kernel_stream_;
 
     private:
       // The private constructor to avoid duplicate instantiation.
