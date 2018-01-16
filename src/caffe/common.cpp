@@ -53,7 +53,7 @@ void GlobalInit(int* pargc, char*** pargv) {
 
 Caffe::Caffe()
     : random_generator_(), mode_(Caffe::CPU),
-      solver_count_(1), solver_rank_(0), multiprocess_(false) { }
+      solver_count_(1), solver_rank_(0), multiprocess_(false), device_id_(-1) { }
 
 Caffe::~Caffe() { }
 
@@ -110,7 +110,7 @@ void* Caffe::RNG::generator() {
 #else  // Normal GPU + CPU Caffe.
 
 Caffe::Caffe()
-    : cublas_handle_(NULL), curand_generator_(NULL), random_generator_(),
+    : cublas_handle_(NULL), curand_generator_(NULL), device_id_(-1), random_generator_(),
     mode_(Caffe::CPU),
     solver_count_(1), solver_rank_(0), multiprocess_(false) {
   // Try to create a cublas handler, and report an error if failed (but we will
@@ -178,16 +178,12 @@ void Caffe::SetDevice(const int device_id) {
       cluster_seedgen()));
 
   // Added by Hao Fu.
-  this->device_id_ = device_id;
+  Get().device_id_ = device_id;
   GpuStreamPool::Get().SetDevice(device_id);
   InfoLog::Get().SetDevice(device_id);
 #ifdef USE_PROF
   KernelAnalyzer::Get().SetDevice(device_id);
 #endif
-}
-
-void Caffe::GetDeviceID() {
-  return this->device_id_;
 }
 
 void Caffe::DeviceQuery() {
