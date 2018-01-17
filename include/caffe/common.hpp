@@ -185,8 +185,8 @@ class Caffe {
 #ifndef CPU_ONLY
   cublasHandle_t cublas_handle_;
   curandGenerator_t curand_generator_;
-  int device_id_; /*< Added by Hao Fu. Used to store the device ID that are currently used. */
 #endif
+  int device_id_; /*< Added by Hao Fu. Used to store the device ID that are currently used. */
   shared_ptr<RNG> random_generator_;
 
   Brew mode_;
