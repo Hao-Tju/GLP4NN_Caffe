@@ -136,7 +136,6 @@ namespace caffe {
       //parallel_degree = pdegree_map_[current_key_str_].max_val;
       parallel_degree = pdegree_map_[current_key_str_];
       if (*(conc_profiling_flag.get()) <= pdegree_map_.size()) {
-        //(*(conc_profiling_flag.get())) ++;
         AsyncResTracker::Get().ProfilerLock();
         AsyncResTracker::Get().InitAsyncResTracker(PROFTYPE::CONCURRENT);
         AsyncResTracker::Get().ProfilerStart(this->device_id_);
@@ -195,6 +194,10 @@ namespace caffe {
         AsyncResTracker::Get().ComputeOccupancyRatio(current_key_str_ + "_PD", pdegree_map_[current_key_str_]);
         AsyncResTracker::Get().TempBufRelease();
         AsyncResTracker::Get().ProfilerUnlock();
+
+        (*(conc_profiling_flag.get())) ++;
+      } else if ((*(conc_profiling_flag.get())) == (pdegree_map_.size() + 1)) {
+        RecordParallelDegree();
 
         (*(conc_profiling_flag.get())) ++;
       }
