@@ -18,11 +18,10 @@
 #define NS2MS 1000000.0
 
 #define CHECK_KERNEL_RECORD(record)     {     \
-  if (record->start == 0) {                   \
-    LOG(FATAL) << "WARNING! Cannot record the START timestamp of kernel: " << record->name;    \
-  } else if (record->end == 0) {              \
-    LOG(FATAL) << "WARNING! Cannot record the END timestamp of kernel: " << record->name;      \
-  }                                           \
+  if (record->start == 0 or record->end == 0) {                   \
+    LOG(FATAL) << "WARNING! Cannot record the START timestamp of kernel: " << record->name  \
+              << ". Start timestamp: " << record->start << ", END timestamp: " << record->end;    \
+  } \
 }
 
 #define MIN(first, second) (first < second ? first : second)
@@ -161,18 +160,28 @@ namespace caffe {
 
     // Record current profiling type.
     // Enable tracking kernel information.
+    LOG(INFO) << "Profiling Type: " << (prof_type == CONCURRENT ? "CONCURRENT" :
+        (prof_type == DEFAULT ? "DEFAULT" : "SERIAL")) << ", Current profiling type: "
+      << (curr_prof_type_ == CONCURRENT ? "CONCURRENT" : (curr_prof_type_ == DEFAULT ? "DEFAULT" : "SERIAL"));
     if ((prof_type == CONCURRENT) and (curr_prof_type_ != CONCURRENT)) {
+      LOG(INFO) << "Change from Serial Profiling to Concurrent Profiling.";
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
     } else if ((curr_prof_type_ == CONCURRENT) and (prof_type != CONCURRENT)) {
+      LOG(INFO) << "Change from Concurrent Profiling to Serial Profiling.";
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
-    } else {
-      LOG(FATAL) << "Undefined operation!";
+    } else if (curr_prof_type_ == CONCURRENT and prof_type == CONCURRENT) {
+      //CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+      //    "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
+    } else if (curr_prof_type_ == DEFAULT and prof_type == DEFAULT) {
+      LOG(INFO) << "Enable Profiling of Serial Kernels.";
+      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
     }
     curr_prof_type_ = prof_type;
 

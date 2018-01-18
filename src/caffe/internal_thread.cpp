@@ -46,6 +46,7 @@ void InternalThread::entry(int device, Caffe::Brew mode, int rand_seed,
   // One line is added by Hao Fu.
   // Set the corresponding device that GpuStreamPool is resident on.
   GpuStreamPool::Get().SetDevice(device);
+  Caffe::SetDevice(device);
 #endif
   Caffe::set_mode(mode);
   Caffe::set_random_seed(rand_seed);

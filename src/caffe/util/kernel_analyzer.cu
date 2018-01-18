@@ -114,8 +114,11 @@ namespace caffe {
     if (this->device_id_ < 0) {
       //CHECK_CUDA_ERROR(cudaGetDevice(&this->device_id_), "cudaGetDevice");
       this->device_id_ = Caffe::Get().GetDeviceID();
+      if (this->device_id_ < 0) {
+        CUDA_CHECK(cudaGetDevice(&this->device_id_));
+      }
     }
-    LOG(INFO) << "Current DEVICE@" << this->device_id_ << ".";
+    //LOG(INFO) << "Current DEVICE@" << this->device_id_ << ".";
 
     stringstream temp_ss;
     temp_ss << layer_name << "_" << loop_label << "_" << this->device_id_;

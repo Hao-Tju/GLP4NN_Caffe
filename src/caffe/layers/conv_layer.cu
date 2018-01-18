@@ -26,9 +26,11 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     int parallel_degree = 0;
 #ifdef USE_PROF
     static bool folder_flag = true;
-    KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
-    if (parallel_degree) {
-      this->SetColBufferNum(parallel_degree);
+    if (this->phase_ == Phase::TRAIN) {
+      KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
+      if (parallel_degree) {
+        this->SetColBufferNum(parallel_degree);
+      }
     }
 #endif
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -129,8 +131,9 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       }
     }
 #ifdef USE_PROF
-    KernelAnalyzer::Get().AnalyzerStop();
-    //LOG(INFO) << "End " << this->layer_param().name() << "_LOOP1:" << parallel_degree;
+    if (this->phase_ == Phase::TRAIN) {
+      KernelAnalyzer::Get().AnalyzerStop();
+    }
 #endif
   }
 }

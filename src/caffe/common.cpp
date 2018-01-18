@@ -157,7 +157,7 @@ void Caffe::set_random_seed(const unsigned int seed) {
 }
 
 void Caffe::SetDevice(const int device_id) {
-  LOG(INFO) << "Enterring Caffe::SetDevice...";
+  //LOG(INFO) << "Enterring Caffe::SetDevice...";
   int current_device;
   CUDA_CHECK(cudaGetDevice(&current_device));
   LOG(INFO) << "Current device is: " << current_device << ". Device used: " << device_id;
