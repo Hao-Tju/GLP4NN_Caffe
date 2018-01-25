@@ -368,8 +368,9 @@ namespace caffe {
       CUpti_ActivityOverhead *overhead = reinterpret_cast<CUpti_ActivityOverhead *> (record);
       stringstream temp_ss;
 
-      LOG(INFO) << "OVERHEAD: " << getActivityKindString(overhead->overheadKind) << "," << static_cast<double>((overhead->start - overhead->end)) / NS2MS << "ms," << getActivityObjectKindString(overhead->objectKind) << std::endl;
-      temp_ss << getActivityKindString(overhead->overheadKind) << "," << (overhead->start - overhead->end) / NS2MS << " ms," << getActivityObjectKindString(overhead->objectKind);
+      // Updated.
+      LOG(INFO) << "OVERHEAD: " << getActivityKindString(overhead->overheadKind) << "," << static_cast<double>((overhead->end - overhead->start)) / NS2MS << "ms," << getActivityObjectKindString(overhead->objectKind) << std::endl;
+      temp_ss << getActivityKindString(overhead->overheadKind) << "," << (overhead->end - overhead->start) / NS2MS << " ms," << getActivityObjectKindString(overhead->objectKind);
 
       InfoLog::Get().RecordInfoLog("cupti_overhead", "CUPTI-OVERHEAD", temp_ss.str());
 
