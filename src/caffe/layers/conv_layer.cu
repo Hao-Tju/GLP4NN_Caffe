@@ -12,6 +12,8 @@ DEFINE_int32(parallelDeg, 1,
 
 namespace caffe {
 
+__global__ void temp_sync() {}
+
 template <typename Dtype>
 void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -133,6 +135,10 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 #ifdef USE_PROF
     if (this->phase_ == Phase::TRAIN) {
       KernelAnalyzer::Get().AnalyzerStop();
+    }
+#else
+    if (FLAGS_parallelDeg > 1) {
+      temp_sync<<<1,1>>>();
     }
 #endif
   }
