@@ -554,9 +554,10 @@ namespace caffe {
         //tail_blocks_t = blocks_k % max_blocks_k;
         // TODO: Is this right to use the maximum number of blocks on a SM for kernel K_i?
         up_blocks_k = ceil(static_cast<double>(blocks_k) / gpu_prop.multiProcessorCount);
-        LOG(INFO) << "up_blocks_k: " << up_blocks_k << std::endl;
+        LOG(INFO) << "max_blocks_k: " << max_blocks_k << ", kernel_exec_time: " << kernel_exec_time << ", up_blocks_k: " << up_blocks_k;
         if (up_blocks_k > max_blocks_k) {
-          kernel_exec_time = (kernel_exec_time * (up_blocks_k % max_blocks_k)) / up_blocks_k;
+          unsigned int residual_blocks = (up_blocks_k % max_blocks_k == 0) ? max_blocks_k : (up_blocks_k % max_blocks_k);
+          kernel_exec_time = (kernel_exec_time * residual_blocks) / static_cast<double>(up_blocks_k);
           LOG(INFO) << "Execution time adjustment: " << kernel_exec_time << " us (new)";
         }
       }
