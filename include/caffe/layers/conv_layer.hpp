@@ -64,7 +64,10 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
    *    kernels + stream parallelism) engines.
    */
   explicit ConvolutionLayer(const LayerParameter& param)
-      : BaseConvolutionLayer<Dtype>(param) { }
+      : BaseConvolutionLayer<Dtype>(param) {
+        parallel_degree = 1;
+        prof_flag = false;
+      }
 
   // Added by Hao Fu.
   // Add LayerSetUp function to initialize class data members.
@@ -84,6 +87,9 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual inline bool reverse_dimensions() { return false; }
   virtual void compute_output_shape();
+
+  int parallel_degree;
+  bool prof_flag;
 };
 
 }  // namespace caffe

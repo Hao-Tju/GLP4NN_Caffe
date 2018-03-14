@@ -135,6 +135,7 @@ namespace caffe {
     } else {
       //parallel_degree = pdegree_map_[current_key_str_].max_val;
       parallel_degree = pdegree_map_[current_key_str_];
+
       if (*(conc_profiling_flag.get()) <= pdegree_map_.size()) {
         AsyncResTracker::Get().ProfilerLock();
         AsyncResTracker::Get().InitAsyncResTracker(PROFTYPE::CONCURRENT);

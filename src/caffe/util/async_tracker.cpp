@@ -265,11 +265,13 @@ namespace caffe {
       *buffer = ALIGN_BUFFER(temp_buf, ALIGN_SIZE);
       *maxNumRecords = 0;
 
-      stringstream temp_ss;
-      temp_ss << (BUFFER_SIZE + ALIGN_SIZE) * sizeof(uint8_t) / 1024 << " KB";
-      InfoLog::Get().RecordInfoLog("cupti_buffer", "CUPTI-BUFFER", temp_ss.str());
-      temp_ss.str("");
-      temp_ss.clear();
+      if (curr_prof_type_ != CONCURRENT) {
+        stringstream temp_ss;
+        temp_ss << (BUFFER_SIZE + ALIGN_SIZE) * sizeof(uint8_t) / 1024 << " KB";
+        InfoLog::Get().RecordInfoLog("cupti_buffer", "CUPTI-BUFFER", temp_ss.str());
+        temp_ss.str("");
+        temp_ss.clear();
+      }
     } else {
       *size = 0;
       *maxNumRecords = 0;
@@ -503,7 +505,7 @@ namespace caffe {
 
     // Remove redundant timestamp from original record.
     for (int i = 0; i < this->kernel_counter_; ++ i) {
-      vector<uint64_t>::iterator start_iter = std::find(time_vec.begin(), time_vec.end(), timestamp_vec_.at(i).start);
+      vector<uint64_t>::iterator  start_iter = std::find(time_vec.begin(), time_vec.end(), timestamp_vec_.at(i).start);
       if (start_iter == time_vec.end()) {
         time_vec.push_back(timestamp_vec_.at(i).start);
       }

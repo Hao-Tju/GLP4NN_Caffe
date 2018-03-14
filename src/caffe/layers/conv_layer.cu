@@ -2,6 +2,8 @@
 
 #include "caffe/layers/conv_layer.hpp"
 
+#include "caffe/util/benchmark.hpp"
+
 DEFINE_int32(gemmOpt, 0,
     "Optional; loop unrolling flag.");
 
@@ -25,11 +27,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     Dtype* top_data = top[i]->mutable_gpu_data();
 
     // Modified by Hao Fu.
-    int parallel_degree = 0;
+    //int parallel_degree = 0;
+//    Timer conv_timer;
 #ifdef USE_PROF
     static bool folder_flag = true;
     if (this->phase_ == Phase::TRAIN) {
       KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "LOOP1", parallel_degree);
+      GpuStreamPool::Get().SetPoolSize(parallel_degree);
       if (parallel_degree) {
         this->SetColBufferNum(parallel_degree);
       }
@@ -40,6 +44,9 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       parallel_degree = FLAGS_parallelDeg;
     }
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    //if (this->prof_flag) {
+    //  LOG(INFO) << "Current parallelDeg: " << parallel_degree;
+    //}
     if (FLAGS_gemmOpt == 0) {
 #ifdef USE_PROF
       if (folder_flag) {
@@ -48,6 +55,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         folder_flag = false;
       }
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//      conv_timer.Start();
 #else
       static bool gpu_pool_flag = false;
       this->SetColBufferNum(FLAGS_parallelDeg);
@@ -75,6 +83,9 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
           }
         }
       }
+//#ifdef USE_PROF
+//      LOG(INFO) << "Forward Time: " << conv_timer.MicroSeconds();
+//#endif
     } else if (FLAGS_gemmOpt == 1) {
 #ifdef USE_PROF
       if (folder_flag) {

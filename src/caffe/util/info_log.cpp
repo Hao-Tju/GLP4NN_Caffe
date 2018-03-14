@@ -3,6 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <ctime>
+#include <algorithm>
 
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
@@ -79,6 +80,7 @@ namespace caffe {
 
     log_stream_.close();
     */
+    std::replace(log_type.begin(), log_type.end(), '/', '_');
     if (this->log_file_handle_ != NULL) {
       fclose(this->log_file_handle_);
       this->log_file_handle_ = NULL;
