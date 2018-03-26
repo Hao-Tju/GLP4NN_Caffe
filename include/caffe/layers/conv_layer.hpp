@@ -73,6 +73,15 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
   // Add LayerSetUp function to initialize class data members.
   //virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   //    const vector<Blob<Dtype>*>& top);
+  // SetParallelDegStep function is used in the heuristic method.
+  // GetParallelDeg function is used to get the parallel degree of the current layer.
+  void SetParallelDegStep(int step) {
+    parallel_degree += step;
+  }
+
+  int GetParallelDeg() {
+    return this->parallel_degree;
+  }
 
   virtual inline const char* type() const { return "Convolution"; }
 

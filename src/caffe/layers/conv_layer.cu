@@ -58,7 +58,8 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 //      conv_timer.Start();
 #else
       static bool gpu_pool_flag = false;
-      this->SetColBufferNum(FLAGS_parallelDeg);
+      //this->SetColBufferNum(FLAGS_parallelDeg);
+      this->SetColBufferNum(parallel_degree);
       if (!gpu_pool_flag) {
         gpu_pool_flag = true;
         GpuStreamPool::Get().SetPoolSize(parallel_degree);

@@ -300,6 +300,10 @@ class Layer {
     param_propagate_down_[param_id] = value;
   }
 
+  // Added by Hao Fu for heuristic method.
+  virtual void SetParallelDegStep(int step) {}
+  virtual int GetParallelDeg() { return 1; }
+
 
  protected:
   /** The protobuf that stores the layer parameters */
