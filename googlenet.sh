@@ -19,6 +19,8 @@ if [ -f ./Makefile.config.prof ]; then
   make -j 8
 
   ./models/bvlc_googlenet/train_googlenet_cpnn.sh
+
+  exit
 fi
 
 if [ -f ./Makefile.config.serial ]; then
@@ -38,4 +40,6 @@ if [ -f ./Makefile.config.serial ]; then
   make -j 8
 
   ./models/bvlc_googlenet/train_googlenet.sh
+
+  exit
 fi
