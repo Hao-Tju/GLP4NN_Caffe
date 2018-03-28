@@ -550,27 +550,34 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
   CHECK_GE(start, 0);
   CHECK_LT(end, layers_.size());
   Dtype loss = 0;
+
+#ifndef CPU_ONLY
   /**
    * Collect the forward time of corresponding layers.
    */
   Timer forward_timer;
   static unsigned int iterations = 1;
   static std::vector<double> forward_time_per_layer(this->layers_.size(), 0.0);
+#endif
   for (int i = start; i <= end; ++i) {
     for (int c = 0; c < before_forward_.size(); ++c) {
       before_forward_[c]->run(i);
     }
+#ifndef CPU_ONLY
     if (Caffe::root_solver() and this->phase() == caffe::TRAIN
         and iterations > 100
         and std::strcmp(layers_[i]->type(), "Convolution") == 0) {
       forward_timer.Start();      // Added by Hao Fu.
     }
+#endif
     Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
+#ifndef CPU_ONLY
     if (Caffe::root_solver() and this->phase() == caffe::TRAIN
         and iterations > 100
         and std::strcmp(layers_[i]->type(), "Convolution") == 0) {
       forward_time_per_layer[i] += forward_timer.MicroSeconds();   // Added by Hao Fu.
     }
+#endif
     loss += layer_loss;
     if (debug_info_) { ForwardDebugInfo(i); }
     for (int c = 0; c < after_forward_.size(); ++c) {
@@ -578,6 +585,7 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
     }
   }
 
+#ifndef CPU_ONLY
   if (Caffe::root_solver() and this->phase() == caffe::TRAIN) {
     iterations ++;
   }
@@ -607,6 +615,7 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
       KernelAnalyzer::Get().RecordParallelDegree();
     }
 #endif
+#endif    /* CPU_ONLY */
   }
 
   return loss;

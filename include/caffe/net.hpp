@@ -12,6 +12,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 // Added by Hao Fu.
+#include "caffe/util/benchmark.hpp"
 #ifndef CPU_ONLY
 #ifdef USE_PROF
 #include "caffe/layers/base_conv_layer.hpp"
