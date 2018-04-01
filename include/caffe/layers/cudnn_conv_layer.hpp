@@ -83,6 +83,9 @@ class CuDNNConvolutionLayer : public BaseConvolutionLayer<Dtype> {
   size_t workspaceSizeInBytes;  // size of underlying storage
   void *workspaceData;  // underlying storage
   void **workspace;  // aliases into workspaceData
+
+  // Added by Hao Fu for concurrent kernel execution.
+  int cudnn_parallel_degree_;
 };
 #endif
 

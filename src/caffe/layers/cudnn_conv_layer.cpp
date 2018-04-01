@@ -92,8 +92,12 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
   // By Hao Fu.
   BaseConvolutionLayer<Dtype>::LayerSetUp(bottom, top);
   // Initialize CUDA streams and cuDNN.
+  /* Removed by Hao Fu. All cudaStream_t related objects are integrated into gpu_manager.hpp.
   stream_         = new cudaStream_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
   handle_         = new cudnnHandle_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
+  */
+  GpuStreamPool::Get().SetPoolSize(this->group_ * CUDNN_STREAMS_PER_GROUP);
+  this->cudnn_parallel_degree_ = 1;
 
   // Initialize algorithm arrays
   fwd_algo_       = new cudnnConvolutionFwdAlgo_t[bottom.size()];
@@ -122,9 +126,11 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
   }
 
   for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
+    /* Removed by Hao Fu. All cudaStream_t related objects are integrated into gpu_manager.hpp.
     CUDA_CHECK(cudaStreamCreate(&stream_[g]));
     CUDNN_CHECK(cudnnCreate(&handle_[g]));
     CUDNN_CHECK(cudnnSetStream(handle_[g], stream_[g]));
+    */
     workspace[g] = NULL;
   }
 

@@ -65,8 +65,9 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
    */
   explicit ConvolutionLayer(const LayerParameter& param)
       : BaseConvolutionLayer<Dtype>(param) {
-        parallel_degree = 1;
-        prof_flag = false;
+        parallel_degree_ = 1;
+        bp_parallel_degree_ = 1;
+        //prof_flag_ = false;
       }
 
   // Added by Hao Fu.
@@ -76,11 +77,11 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
   // SetParallelDegStep function is used in the heuristic method.
   // GetParallelDeg function is used to get the parallel degree of the current layer.
   void SetParallelDegStep(int step) {
-    parallel_degree += step;
+    parallel_degree_ += step;
   }
 
   int GetParallelDeg() {
-    return this->parallel_degree;
+    return this->parallel_degree_;
   }
 
   virtual inline const char* type() const { return "Convolution"; }
@@ -97,8 +98,9 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
   virtual inline bool reverse_dimensions() { return false; }
   virtual void compute_output_shape();
 
-  int parallel_degree;
-  bool prof_flag;
+  int parallel_degree_;
+  int bp_parallel_degree_;
+  //bool prof_flag_;
 };
 
 }  // namespace caffe
