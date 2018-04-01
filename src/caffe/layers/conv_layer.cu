@@ -123,7 +123,7 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       */
       for (int n = 0; n < this->num_; n += bp_parallel_degree_) {
         for (int k_idx = 0; (k_idx < bp_parallel_degree_) and ((n + k_idx) < this->num_); ++ k_idx) {
-          this->backward_gpu_bias(bias_idff, top_diff + (n + k_idx) * this->top_dim_, k_idx);
+          this->backward_gpu_bias(bias_diff, top_diff + (n + k_idx) * this->top_dim_, k_idx);
         }
       }
 #ifdef USE_PROF

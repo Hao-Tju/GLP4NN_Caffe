@@ -465,7 +465,7 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
     const Dtype* weights, Dtype* input, int stream_id) {
-  Dtype* col_buff = col_buff_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(stream_id);
+  Dtype* col_buff = col_buffer_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(stream_id);
   if (is_1x1_) {
     col_buff = input;
   }
@@ -484,8 +484,8 @@ void BaseConvolutionLayer<Dtype>::weight_gpu_gemm(const Dtype* input,
   const Dtype* col_buff = input;
 
   if (!is_1x1_) {
-    conv_im2col_gpu(input, col_buff_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(stream_id));
-    col_buff = col_buff_[(stream_id == -1) ? 0 : stream_id]->gpu_data(stream_id);
+    conv_im2col_gpu(input, col_buffer_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(stream_id));
+    col_buff = col_buffer_[(stream_id == -1) ? 0 : stream_id]->gpu_data(stream_id);
   }
 
   for (int g = 0; g < group_; ++ g) {
