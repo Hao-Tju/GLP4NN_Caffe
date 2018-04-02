@@ -1,8 +1,8 @@
 #include <vector>
 
 #include "caffe/layers/conv_layer.hpp"
-
 #include "caffe/util/benchmark.hpp"
+#include "caffe/util/metric_func.hpp"
 
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 DEFINE_int32(parallelDeg, 1,
@@ -63,6 +63,10 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #endif
 
+#ifdef GPU_METRIC
+    InitMetric("achieved_occupancy");
+#endif
+
     Dtype *bias, *bias_multiplier;
     if (this->bias_term_) {
       bias = this->blobs_[1]->mutable_gpu_data();
@@ -81,6 +85,9 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
     }
+#ifdef GPU_METRIC
+    EndMetric();
+#endif
 
 #ifdef USE_PROF
     if (this->phase_ == Phase::TRAIN) {
