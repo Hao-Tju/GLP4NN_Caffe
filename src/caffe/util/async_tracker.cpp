@@ -166,21 +166,25 @@ namespace caffe {
     if ((prof_type == CONCURRENT) and (curr_prof_type_ != CONCURRENT)) {
       LOG(INFO) << "Change from Serial Profiling to Concurrent Profiling.";
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL),
-          "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_KERNEL");
+          "cuptiActivityDisable CUPTI_ACTIVITY_KIND_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
     } else if ((curr_prof_type_ == CONCURRENT) and (prof_type != CONCURRENT)) {
       LOG(INFO) << "Change from Concurrent Profiling to Serial Profiling.";
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-          "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+          "cuptiActivityDisable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
-    } else if (curr_prof_type_ != CONCURRENT and prof_type != CONCURRENT) {
-      LOG(INFO) << "Enable Profiling of Serial Kernels.";
+    } else if (prof_type == SERIAL and curr_prof_type_ == CONCURRENT) {
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-          "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+          "cuptiActivityDisable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
+    } else if (curr_prof_type_ == DEFAULT and prof_type == DEFAULT) {
+      //CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+      //    "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
     }
     curr_prof_type_ = prof_type;
 
@@ -315,6 +319,7 @@ namespace caffe {
     // Only parse kernel information.
     if ((record->kind == CUPTI_ACTIVITY_KIND_KERNEL) or
         (record->kind == CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL)) {
+      //LOG(INFO) << (record->kind == CUPTI_ACTIVITY_KIND_KERNEL ? "CUPTI_ACTIVITY_KIND_KERNEL" : "CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CUpti_ActivityKernel3 *kernel_record = reinterpret_cast<CUpti_ActivityKernel3 *>(record);
       // Check whether the kernel record is valid.
       CHECK_KERNEL_RECORD(kernel_record);

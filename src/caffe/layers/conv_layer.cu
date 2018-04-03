@@ -46,7 +46,7 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     //}
 #ifdef USE_PROF
     if (folder_flag) {
-      LOG(INFO) << "Now is doing UNOPTIMIZED execution!";
+      //LOG(INFO) << "Now is doing UNOPTIMIZED execution!";
       InfoLog::Get().SetFolder("Unoptimized");
       folder_flag = false;
     }
@@ -78,7 +78,6 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     */
     for (int n = 0; n < this->num_; n += parallel_degree_) {
       for (int k_idx = 0; (k_idx < parallel_degree_) and ((n + k_idx) < this->num_); ++ k_idx) {
-        //LOG(INFO) << "Current idx: " << (n + k_idx);
         this->forward_gpu_gemm(bottom_data + (n + k_idx) * this->bottom_dim_, weight,
             top_data + (n + k_idx) * this->top_dim_, k_idx);
 
@@ -118,6 +117,7 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     // Bias gradient, if necessary.
     if (this->bias_term_ && this->param_propagate_down_[1]) {
       Dtype* bias_diff = this->blobs_[1]->mutable_gpu_diff();
+      /*
 #ifdef USE_PROF
       static bool back_folder = true;
       if (back_folder) {
@@ -130,6 +130,7 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
         GpuStreamPool::Get().SetPoolSize(bp_parallel_degree_);
       }
 #endif
+      */
       /* Former implementation.
       for (int n = 0; n < this->num_; ++n) {
         this->backward_gpu_bias(bias_diff, top_diff + n * this->top_dim_);
@@ -143,11 +144,13 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
           this->backward_gpu_bias(bias_diff, top_diff + (n + k_idx) * this->top_dim_, k_idx);
         }
       }
+      /*
 #ifdef USE_PROF
       if (this->phase_ == Phase::TRAIN) {
         KernelAnalyzer::Get().AnalyzerStop();
       }
 #endif
+      */
     }
     if (this->param_propagate_down_[0] || propagate_down[i]) {
       const Dtype* bottom_data = bottom[i]->gpu_data();
