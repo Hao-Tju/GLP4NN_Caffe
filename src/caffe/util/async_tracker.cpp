@@ -166,22 +166,21 @@ namespace caffe {
     if ((prof_type == CONCURRENT) and (curr_prof_type_ != CONCURRENT)) {
       LOG(INFO) << "Change from Serial Profiling to Concurrent Profiling.";
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL),
-          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
+          "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
     } else if ((curr_prof_type_ == CONCURRENT) and (prof_type != CONCURRENT)) {
       LOG(INFO) << "Change from Concurrent Profiling to Serial Profiling.";
       CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+          "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
-    } else if (curr_prof_type_ == CONCURRENT and prof_type == CONCURRENT) {
-      //CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-      //    "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
-    } else if (curr_prof_type_ == DEFAULT and prof_type == DEFAULT) {
+    } else if (curr_prof_type_ != CONCURRENT and prof_type != CONCURRENT) {
       LOG(INFO) << "Enable Profiling of Serial Kernels.";
-      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+      CHECK_CUPTI_ERROR(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
+          "cuptiActivityDisenable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
+      CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
+          "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
     }
     curr_prof_type_ = prof_type;
 
@@ -407,14 +406,24 @@ namespace caffe {
     // To avoid additional kernel recorded.
 
     uint64_t total_launch_overhead = 0;
-    for (int i = 0; i < min_invocations; ++ i) {
-      for (int j = 1; j < kernels_per_iter; ++ j) {
-        total_launch_overhead += (timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end);
+    if (kernels_per_iter > 1) {
+      for (int i = 0; i < min_invocations; ++ i) {
+        for (int j = 1; j < kernels_per_iter; ++ j) {
+          total_launch_overhead += (timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end);
+        }
+      }
+    } else {
+      for (int i = 0; i < (min_invocations - 1); ++ i) {
+        total_launch_overhead += (timestamp_vec_.at(i + 1).start - timestamp_vec_.at(i).end);
       }
     }
 
     LOG(INFO) << "total_launch_overhead = " << total_launch_overhead << "; kernels_per_iter = " << kernels_per_iter << "; min_invocations = " << min_invocations;
-    kernel_launch_overhead_ = total_launch_overhead / ((kernels_per_iter - 1) * min_invocations);
+    if (kernels_per_iter > 1) {
+      kernel_launch_overhead_ = total_launch_overhead / ((kernels_per_iter - 1) * min_invocations);
+    } else {
+      kernel_launch_overhead_ = total_launch_overhead / (min_invocations - 1);
+    }
 
     stringstream temp_ss;
     temp_ss << "timestamp_vec_buffer," << sizeof(Timestamp_t) * timestamp_vec_.size() << "," << "kernel_temp_buffer," << sizeof(Kernel_t) * kernels_vec_.size();

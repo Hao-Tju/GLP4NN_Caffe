@@ -657,18 +657,76 @@ template <typename Dtype>
 void Net<Dtype>::BackwardFromTo(int start, int end) {
   CHECK_GE(end, 0);
   CHECK_LT(start, layers_.size());
+#ifndef CPU_ONLY
+  /**
+   * Collect the forward time of corresponding layers.
+   */
+  Timer backward_timer;
+  static unsigned int bk_iterations = 1;
+  static std::vector<double> backward_time_per_layer(this->layers_.size(), 0.0);
+#endif
   for (int i = start; i >= end; --i) {
     for (int c = 0; c < before_backward_.size(); ++c) {
       before_backward_[c]->run(i);
     }
+#ifndef CPU_ONLY
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN
+        and bk_iterations > 100
+        and std::strcmp(layers_[i]->type(), "Convolution") == 0) {
+      backward_timer.Start();      // Added by Hao Fu.
+    }
+#endif
     if (layer_need_backward_[i]) {
       layers_[i]->Backward(
           top_vecs_[i], bottom_need_backward_[i], bottom_vecs_[i]);
       if (debug_info_) { BackwardDebugInfo(i); }
     }
+#ifndef CPU_ONLY
+    if (Caffe::root_solver() and this->phase() == caffe::TRAIN
+        and bk_iterations > 100
+        and std::strcmp(layers_[i]->type(), "Convolution") == 0) {
+      backward_time_per_layer[i] += backward_timer.MicroSeconds();   // Added by Hao Fu.
+    }
+#endif
     for (int c = 0; c < after_backward_.size(); ++c) {
       after_backward_[c]->run(i);
     }
+  }
+#ifndef CPU_ONLY
+  if (Caffe::root_solver() and this->phase() == caffe::TRAIN) {
+    bk_iterations ++;
+  }
+
+  if (Caffe::root_solver() and this->phase() == caffe::TRAIN and bk_iterations > 100 and bk_iterations % 100 == 0) {
+    stringstream temp_ss;
+    for (int i = 0; i < layers_.size() ; ++ i) {
+      if (std::strcmp(layers_[i]->type(), "Convolution") == 0) {
+        const caffe::string& layername = layers_[i]->layer_param().name();
+        LOG_IF(INFO, Caffe::root_solver()) << std::setfill(' ') << std::setw(10) << layername << "\tforward: " << backward_time_per_layer[i] / 100000.0 << " ms( " << backward_time_per_layer[i] / 100.0 << " us ) --- ITERATIONS: " << bk_iterations;
+
+        /*
+        temp_ss << "ITER-" << iterations << "," << layername << "," << forward_time_per_layer[i] / 100000.0 << " ms," << forward_time_per_layer[i] / 100.0 << " us";
+#ifdef USE_PROF
+        InfoLog::Get().RecordInfoLog("Forward", "Forward-PROF", temp_ss.str());
+#else
+        InfoLog::Get().RecordInfoLog("Forward", "Forward-DEFAULT" + to_string(FLAGS_parallelDeg), temp_ss.str());
+#endif
+        temp_ss.str("");
+        temp_ss.clear();
+        */
+
+        backward_time_per_layer[i] = 0.0;
+      }
+    }
+
+    /*
+#ifdef USE_PROF
+    if (iterations == 99) {
+      KernelAnalyzer::Get().RecordParallelDegree();
+    }
+#endif
+    */
+#endif    /* CPU_ONLY */
   }
 }
 

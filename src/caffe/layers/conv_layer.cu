@@ -63,16 +63,19 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #endif
 
-#ifdef GPU_METRIC
-    InitMetric("achieved_occupancy");
-#endif
-
     Dtype *bias, *bias_multiplier;
     if (this->bias_term_) {
       bias = this->blobs_[1]->mutable_gpu_data();
       bias_multiplier = this->bias_multiplier_.mutable_gpu_data();
     }
     //CUDA_CHECK(cudaDeviceSynchronize());
+    /*
+#ifdef GPU_METRIC
+      //if (parallel_degree_ > 1) {
+        InitMetric("achieved_occupancy");
+      //}
+#endif
+    */
     for (int n = 0; n < this->num_; n += parallel_degree_) {
       for (int k_idx = 0; (k_idx < parallel_degree_) and ((n + k_idx) < this->num_); ++ k_idx) {
         //LOG(INFO) << "Current idx: " << (n + k_idx);
@@ -85,9 +88,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
     }
+    /*
 #ifdef GPU_METRIC
-    EndMetric();
+      //if (parallel_degree_ > 1) {
+        EndMetric("achieved_occupancy");
+      //}
 #endif
+    */
 
 #ifdef USE_PROF
     if (this->phase_ == Phase::TRAIN) {
@@ -113,14 +120,14 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       Dtype* bias_diff = this->blobs_[1]->mutable_gpu_diff();
 #ifdef USE_PROF
       static bool back_folder = true;
-      if (this->phase_ == Phase::TRAIN) {
-        KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "BP_LOOP1", bp_parallel_degree_);
-        GpuStreamPool::Get().SetPoolSize(bp_parallel_degree_);
-      }
       if (back_folder) {
         LOG(INFO) << "Now is doing BACKWARD execution!";
         InfoLog::Get().SetFolder("BACKWARD");
         back_folder = false;
+      }
+      if (this->phase_ == Phase::TRAIN) {
+        KernelAnalyzer::Get().AnalyzerStart(this->layer_param().name(), "BP_LOOP1", bp_parallel_degree_);
+        GpuStreamPool::Get().SetPoolSize(bp_parallel_degree_);
       }
 #endif
       /* Former implementation.
@@ -128,6 +135,9 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
         this->backward_gpu_bias(bias_diff, top_diff + n * this->top_dim_);
       }
       */
+      if (bp_parallel_degree_ < FLAGS_parallelDeg) {
+        bp_parallel_degree_ = FLAGS_parallelDeg;
+      }
       for (int n = 0; n < this->num_; n += bp_parallel_degree_) {
         for (int k_idx = 0; (k_idx < bp_parallel_degree_) and ((n + k_idx) < this->num_); ++ k_idx) {
           this->backward_gpu_bias(bias_diff, top_diff + (n + k_idx) * this->top_dim_, k_idx);
@@ -152,6 +162,9 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
         }
       }
 #endif
+      if (bp_parallel_degree_ < FLAGS_parallelDeg) {
+        bp_parallel_degree_ = FLAGS_parallelDeg;
+      }
       /*
       for (int n = 0; n < this->num_; ++n) {
         // gradient w.r.t. weight. Note that we will accumulate diffs.

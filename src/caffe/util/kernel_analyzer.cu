@@ -132,6 +132,7 @@ namespace caffe {
       AsyncResTracker::Get().InitAsyncResTracker(PROFTYPE::SERIAL);
       AsyncResTracker::Get().ProfilerStart(this->device_id_);
       parallel_degree = 0;
+      *(conc_profiling_flag.get()) = 0;
     } else {
       //parallel_degree = pdegree_map_[current_key_str_].max_val;
       parallel_degree = pdegree_map_[current_key_str_];
