@@ -461,6 +461,26 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
   //    (Dtype)1., output,
   //    stream_id);
 }
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
+    const Dtype* weights, Dtype* input, int stream_id) {
+  // Modified by Hao Fu.
+  // Dtype* col_buff = col_buffer_.mutable_gpu_data();
+  Dtype* col_buff = col_buffer_[(stream_id == -1) ? 0 : stream_id]->mutable_gpu_data(stream_id);
+  if (is_1x1_) {
+    col_buff = input;
+  }
+  for (int g = 0; g < group_; ++g) {
+    caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
+        conv_out_spatial_dim_, conv_out_channels_ / group_,
+        (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
+        (Dtype)0., col_buff + col_offset_ * g, stream_id);
+  }
+  if (!is_1x1_) {
+    conv_col2im_gpu(col_buff, input, stream_id);
+  }
+}
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 template <typename Dtype>

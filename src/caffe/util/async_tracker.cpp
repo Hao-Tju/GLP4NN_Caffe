@@ -175,9 +175,6 @@ namespace caffe {
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL");
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL),
           "cuptiActivityEnable CUPTI_ACTIVITY_KIND_KERNEL");
-    } else if (curr_prof_type_ == CONCURRENT and prof_type == CONCURRENT) {
-      //CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
-      //    "cuptiActivityEnable CUPTI_ACTIVITY_KIND_CONRRENT_KERNEL")
     } else if (curr_prof_type_ == DEFAULT and prof_type == DEFAULT) {
       LOG(INFO) << "Enable Profiling of Serial Kernels.";
       CHECK_CUPTI_ERROR(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL),
@@ -349,6 +346,7 @@ namespace caffe {
       if (pos == -1) { // For the first time of recording a kernel.
         kernel.invocations = 1;
         kernel.duration = kernel_duration;
+        kernel.average_exec_time = kernel_duration;
         kernels_vec_ptr_->push_back(kernel);
       } else { // Update the information of a kernel recorded already.
         kernels_vec_ptr_->at(pos).invocations ++;
@@ -356,6 +354,7 @@ namespace caffe {
         kernels_vec_ptr_->at(pos).average_exec_time = std::ceil(kernels_vec_ptr_->at(pos).duration /
             static_cast<double>(kernels_vec_ptr_->at(pos).invocations));
       }
+      LOG(INFO) << "END: " << kernel_record->end << ", START: " << kernel_record->start << ", DURATION: " << kernel_duration;
 
       timestamp.start = kernel_record->start - static_startTimestamp_;
       timestamp.end = kernel_record->end - static_startTimestamp_;
@@ -407,14 +406,24 @@ namespace caffe {
     // To avoid additional kernel recorded.
 
     uint64_t total_launch_overhead = 0;
-    for (int i = 0; i < min_invocations; ++ i) {
-      for (int j = 1; j < kernels_per_iter; ++ j) {
-        total_launch_overhead += (timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end);
+    if (kernels_per_iter > 1) {
+      for (int i = 0; i < min_invocations; ++ i) {
+        for (int j = 1; j < kernels_per_iter; ++ j) {
+          total_launch_overhead += (timestamp_vec_.at(i * kernels_per_iter + j).start - timestamp_vec_.at(i * kernels_per_iter + j - 1).end);
+        }
+      }
+    } else {
+      for (int i = 0; i < (min_invocations - 1); ++ i) {
+        total_launch_overhead += (timestamp_vec_.at(i + 1).start - timestamp_vec_.at(i).end);
       }
     }
 
     LOG(INFO) << "total_launch_overhead = " << total_launch_overhead << "; kernels_per_iter = " << kernels_per_iter << "; min_invocations = " << min_invocations;
-    kernel_launch_overhead_ = total_launch_overhead / ((kernels_per_iter - 1) * min_invocations);
+    if (kernels_per_iter > 1) {
+      kernel_launch_overhead_ = total_launch_overhead / ((kernels_per_iter - 1) * min_invocations);
+    } else {
+      kernel_launch_overhead_ = total_launch_overhead / (min_invocations - 1);
+    }
 
     stringstream temp_ss;
     temp_ss << "timestamp_vec_buffer," << sizeof(Timestamp_t) * timestamp_vec_.size() << "," << "kernel_temp_buffer," << sizeof(Kernel_t) * kernels_vec_.size();

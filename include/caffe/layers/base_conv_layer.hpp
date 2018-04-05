@@ -70,6 +70,8 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
       Dtype* output, char opt, int parallel_degree, bool skip_im2col = false);
   void forward_gpu_bias(Dtype* output, const Dtype* bias, const Dtype* bias_multiplier, int stream_id);
+  void backward_gpu_gemm(const Dtype* input, const Dtype* weights,
+      Dtype* col_output, int stream_id);
   //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
