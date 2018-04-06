@@ -476,6 +476,9 @@ void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
         (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
         (Dtype)0., col_buff + col_offset_ * g, stream_id);
   }
+  if (!is_1x1_) {
+    conv_col2im_gpu(col_buff, input, stream_id);
+  }
 }
 
 template <typename Dtype>
