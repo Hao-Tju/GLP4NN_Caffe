@@ -29,7 +29,7 @@
  */
 #define CHECK_CUDA_ERROR(err, functionName) {                   \
   if (err != cudaSuccess) {                                     \
-    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": error " <<   \
+    LOG(FATAL) << __FILE__ << "@" << __LINE__ << ": error " <<   \
       err << " for CUDA Runtime API function '" << functionName \
       << "': " << cudaGetErrorString(err) << std::endl;         \
     exit (EXIT_FAILURE);                                        \
@@ -44,7 +44,7 @@
   if (err != CUPTI_SUCCESS) {                                           \
     const char* errstr;                                                 \
     cuptiGetResultString(err, &errstr);                                 \
-    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": Error " << errstr << \
+    LOG(FATAL) << __FILE__ << "@" << __LINE__ << ": Error " << errstr << \
       " for CUPTI API function '" << cuptifunc << "'." << std::endl;    \
     exit(EXIT_FAILURE);                                                 \
   }                                                                     \
@@ -58,7 +58,7 @@
   if (err != CUDA_SUCCESS) {                                    \
     const char* errstr;                                         \
     cuGetErrorString(err, &errstr);                             \
-    LOG(FATAL) << __FILE__ << ":" << __LINE__ << ": error " <<   \
+    LOG(FATAL) << __FILE__ << "@" << __LINE__ << ": error " <<  \
       err << " for CUDA Driver API function '" << functionName  \
       << "': " << errstr << std::endl;                          \
     exit (EXIT_FAILURE);                                        \

@@ -4,6 +4,20 @@
 
 #include "caffe/util/benchmark.hpp"
 
+#include <nvml.h>
+
+/**
+ * @brief Macro used to check NVML errors, and print the corresponding error string.
+ */
+#define CHECK_NVML_ERROR(err, funcName) {                       \
+  if (err != NVML_SUCCESS) {                                    \
+    LOG(FATAL) << __FILE__ << "@" << __LINE__ << ": error " <<  \
+      err << " for NVML function '" << funcName << "': " <<     \
+      i<< nvmlErrorString(err);                                 \
+    exit(EXIT_FAILURE);                                         \
+  }                                                             \
+}
+
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 DEFINE_int32(parallelDeg, 1,
     "Optional. static loop unrolling flag (>=1).");
@@ -44,6 +58,13 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     //if (this->prof_flag) {
     //  LOG(INFO) << "Current parallelDeg: " << parallel_degree;
     //}
+    /*
+    nvmlDevice_t device;
+    if (this->phase_ == Phase::TRAIN) {
+      CHECK_NVML_ERROR(nvmlInit(), "nvmlInit");
+      CHECK_NVML_ERROR(nvmlDeviceGetHandleByIndex(0, &device), "nvmlDeviceGetHandleByIndex");
+    }
+    */
 #ifdef USE_PROF
     if (folder_flag) {
       //LOG(INFO) << "Now is doing UNOPTIMIZED execution!";
@@ -92,6 +113,19 @@ void ConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       temp_sync<<<1,1>>>();
     }
 #endif
+    /*
+    if (this->phase_ == Phase::TRAIN) {
+      nvmlUtilization_t utili_ratio;
+      char gpu_name[NVML_DEVICE_NAME_BUFFER_SIZE];
+      CHECK_NVML_ERROR(nvmlDeviceGetName(device, gpu_name, NVML_DEVICE_NAME_BUFFER_SIZE), "nvmlDeviceGetName");
+      CHECK_NVML_ERROR(nvmlDeviceGetUtilizationRates(device, &utili_ratio), "nvmlDeviceGetUtilizationRates");
+
+      LOG(INFO) << "Utilization Ratio of " << gpu_name << ": [" << utili_ratio.gpu << ", " << \
+        utili_ratio.memory << "].";
+
+      CHECK_NVML_ERROR(nvmlShutdown(), "nvmlShutdown");
+    }
+    */
   }
 }
 
