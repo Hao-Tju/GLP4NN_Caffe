@@ -659,7 +659,7 @@ void Net<Dtype>::BackwardFromTo(int start, int end) {
   CHECK_LT(start, layers_.size());
 #ifndef CPU_ONLY
   /**
-   *    * Collect the forward time of corresponding layers.
+   * Collect the forward time of corresponding layers.
    */
   Timer backward_timer;
   static unsigned int bk_iterations = 1;

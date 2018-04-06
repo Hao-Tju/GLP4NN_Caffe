@@ -132,15 +132,18 @@ namespace caffe {
       AsyncResTracker::Get().InitAsyncResTracker(PROFTYPE::SERIAL);
       AsyncResTracker::Get().ProfilerStart(this->device_id_);
       parallel_degree = 0;
+      *(conc_profiling_flag.get()) = 0;
     } else {
       //parallel_degree = pdegree_map_[current_key_str_].max_val;
       parallel_degree = pdegree_map_[current_key_str_];
 
+      /*
       if (*(conc_profiling_flag.get()) <= pdegree_map_.size()) {
         AsyncResTracker::Get().ProfilerLock();
         AsyncResTracker::Get().InitAsyncResTracker(PROFTYPE::CONCURRENT);
         AsyncResTracker::Get().ProfilerStart(this->device_id_);
       }
+      */
     }
 
     temp_ss.str("");
@@ -189,6 +192,7 @@ namespace caffe {
 
       LOG(INFO) << "Asynchronous resource tracker stop!";
     } else {
+      /*
       if ((*(conc_profiling_flag.get())) <= pdegree_map_.size()) {
         AsyncResTracker::Get().ProfilerStop();
         AsyncResTracker::Get().TimestampLog(current_key_str_ + "_PD");
@@ -202,6 +206,7 @@ namespace caffe {
 
         (*(conc_profiling_flag.get())) ++;
       }
+      */
       sync<<<1,1>>>();
     }
 

@@ -1,7 +1,6 @@
 #include <vector>
 
 #include "caffe/layers/conv_layer.hpp"
-
 #include "caffe/util/benchmark.hpp"
 
 #include <nvml.h>
@@ -178,12 +177,12 @@ void ConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
             this->backward_gpu_gemm(top_diff + (n + k_idx) * this->top_dim_, weight,
                 bottom_diff + (n + k_idx) * this->bottom_dim_, k_idx);
           }
-        }
 #ifdef USE_PROF
-        if (this->phase_ == Phase::TRAIN) {
-          KernelAnalyzer::Get().AnalyzerStop();
-        }
+          if (this->phase_ == Phase::TRAIN) {
+            KernelAnalyzer::Get().AnalyzerStop();
+          }
 #endif
+        }
       }
       /*
       for (int n = 0; n < this->num_; ++n) {

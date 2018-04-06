@@ -67,7 +67,7 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
       : BaseConvolutionLayer<Dtype>(param) {
         parallel_degree_ = 1;
         bp_parallel_degree_ = 1;
-        prof_flag = false;
+        //prof_flag_ = false;
       }
 
   // Added by Hao Fu.
@@ -100,7 +100,7 @@ class ConvolutionLayer : public BaseConvolutionLayer<Dtype> {
 
   int parallel_degree_;
   int bp_parallel_degree_;
-  bool prof_flag;
+  //bool prof_flag_;
 };
 
 }  // namespace caffe
