@@ -2,6 +2,8 @@
 
 This is an implementation of the GLP4NN parallelization framework on the basis of Caffe, which is a popular deep  learning framework. Original source code of the Caffe framework can be found in [Caffe](https://github.com/BVLC/caffe).
 
+Other libraries required by this implementation: GLPK implementation and the CUPTI library. The implementation with cuDNN library has not been implemented. We'll try to provide a more generic implementation of this framework based on other distributed frameworks in the near future.
+
 # Caffe
 
 [![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
